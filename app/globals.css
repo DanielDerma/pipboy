@@ -21,6 +21,8 @@ body {
   margin: 0;
   padding: 0;
   overflow: hidden;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Enhanced Scanlines effect */
@@ -501,4 +503,23 @@ body {
   opacity: 0.03;
   pointer-events: none;
   z-index: 99;
+}
+
+/* Mobile optimizations */
+@media (max-width: 640px) {
+  .glow-text {
+    text-shadow: 0 0 6px rgba(0, 255, 0, 0.7);
+  }
+
+  button,
+  a {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  input,
+  select,
+  textarea {
+    font-size: 16px; /* Prevents iOS zoom on focus */
+  }
 }

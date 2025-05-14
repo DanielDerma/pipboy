@@ -4,6 +4,7 @@ import { useState, useEffect, type ReactNode } from "react"
 import { cn } from "@/lib/utils"
 import { PipBoySidebar } from "@/components/pip-boy-sidebar"
 import { LoadingScreen } from "@/components/loading-screen"
+import { Menu } from "lucide-react"
 
 interface PipBoyLayoutProps {
   children: ReactNode
@@ -13,6 +14,7 @@ interface PipBoyLayoutProps {
 
 export function PipBoyLayout({ children, activeTab, setActiveTab }: PipBoyLayoutProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [loadingMessage, setLoadingMessage] = useState("")
   const [content, setContent] = useState<ReactNode>(children)
@@ -60,8 +62,36 @@ export function PipBoyLayout({ children, activeTab, setActiveTab }: PipBoyLayout
     return () => clearTimeout(timer)
   }, [activeTab, children, isInitialLoad])
 
+  // Close mobile sidebar when changing tabs
+  useEffect(() => {
+    setMobileSidebarOpen(false)
+  }, [activeTab])
+
+  // Close mobile sidebar when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement
+      if (
+        mobileSidebarOpen &&
+        !target.closest('[data-sidebar="true"]') &&
+        !target.closest('[data-sidebar-toggle="true"]')
+      ) {
+        setMobileSidebarOpen(false)
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+    }
+  }, [mobileSidebarOpen])
+
   const toggleSidebar = () => {
     setSidebarCollapsed(!sidebarCollapsed)
+  }
+
+  const toggleMobileSidebar = () => {
+    setMobileSidebarOpen(!mobileSidebarOpen)
   }
 
   const handleLoadingComplete = () => {
@@ -91,8 +121,21 @@ export function PipBoyLayout({ children, activeTab, setActiveTab }: PipBoyLayout
         {/* Top navigation bar */}
         <nav className="border-b-2 border-[#00ff00] p-2 md:p-4">
           <div className="flex justify-between items-center">
+            {/* Mobile sidebar toggle */}
+            <button
+              data-sidebar-toggle="true"
+              onClick={toggleMobileSidebar}
+              className="md:hidden w-10 h-10 border-2 border-[#00ff00] rounded-sm flex items-center justify-center hover:bg-[#00ff00]/20"
+              aria-label="Toggle sidebar"
+            >
+              <Menu className="w-6 h-6 text-[#00ff00]" />
+            </button>
+
             <div className="flex-1 text-center text-xl md:text-2xl glow-text">PIP-BOY 3000</div>
             <div className="hidden md:block text-sm glow-text">VAULT-TEC INDUSTRIES</div>
+
+            {/* Empty div to balance the layout */}
+            <div className="w-10 md:hidden"></div>
           </div>
 
           <div className="flex justify-around mt-4">
@@ -115,10 +158,29 @@ export function PipBoyLayout({ children, activeTab, setActiveTab }: PipBoyLayout
 
         {/* Main content area with sidebar */}
         <div className="flex flex-1 overflow-hidden">
-          {/* Sidebar - hidden on mobile */}
+          {/* Desktop Sidebar */}
           <div className="hidden md:block">
             <PipBoySidebar isCollapsed={sidebarCollapsed} toggleSidebar={toggleSidebar} />
           </div>
+
+          {/* Mobile Sidebar - Slide out drawer */}
+          <div
+            data-sidebar="true"
+            className={cn(
+              "fixed inset-y-0 left-0 z-50 transition-transform duration-300 ease-in-out transform md:hidden",
+              mobileSidebarOpen ? "translate-x-0" : "-translate-x-full",
+            )}
+          >
+            <PipBoySidebar isMobile={true} isCollapsed={false} toggleSidebar={toggleMobileSidebar} />
+          </div>
+
+          {/* Overlay when mobile sidebar is open */}
+          {mobileSidebarOpen && (
+            <div
+              className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+              onClick={() => setMobileSidebarOpen(false)}
+            ></div>
+          )}
 
           {/* Main content area */}
           <main className="flex-1 overflow-auto p-4 md:p-6 retro-terminal">{content}</main>
