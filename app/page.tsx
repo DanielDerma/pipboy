@@ -8,7 +8,7 @@ import { TaskPanel } from "@/components/task-panel"
 import { CharacterPanel } from "@/components/character-panel"
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<"tasks" | "stats" | "inventory">("stats")
+  const [activeTab, setActiveTab] = useState<"tasks" | "stats" | "inventory">("tasks")
 
   return (
     <PipBoyLayout activeTab={activeTab} setActiveTab={setActiveTab}>
