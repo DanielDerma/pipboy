@@ -1,0 +1,231 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --pip-boy-bg: #0b3d0b;
+  --pip-boy-text: #00ff00;
+}
+
+@font-face {
+  font-family: "VT323";
+  src: url("https://fonts.googleapis.com/css2?family=VT323&display=swap");
+  font-weight: 400;
+  font-style: normal;
+}
+
+body {
+  font-family: var(--font-vt323), "VT323", monospace;
+  background-color: var(--pip-boy-bg);
+  color: var(--pip-boy-text);
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Scanlines effect */
+.bg-scanlines {
+  background: linear-gradient(to bottom, transparent 50%, rgba(0, 0, 0, 0.1) 50%);
+  background-size: 100% 4px;
+}
+
+/* CRT glow effect */
+.crt-glow {
+  box-shadow: 0 0 10px 2px rgba(0, 255, 0, 0.2) inset;
+}
+
+/* Vignette effect */
+.vignette {
+  background: radial-gradient(circle, transparent 60%, rgba(0, 0, 0, 0.4) 100%);
+}
+
+/* Glowing text effect */
+.glow-text {
+  text-shadow: 0 0 8px rgba(0, 255, 0, 0.8);
+}
+
+/* Retro terminal effect */
+.retro-terminal {
+  background-image: linear-gradient(rgba(0, 255, 0, 0.03) 50%, transparent 50%);
+  background-size: 100% 4px;
+}
+
+/* Pixel progress bar */
+.pixel-progress {
+  position: relative;
+  box-shadow: 0 0 10px rgba(0, 255, 0, 0.7);
+}
+
+.pixel-overlay {
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    transparent 50%,
+    rgba(0, 0, 0, 0.1) 50%,
+    rgba(0, 0, 0, 0.1) 100%
+  );
+  background-size: 4px 100%;
+}
+
+/* For Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--pip-boy-text) var(--pip-boy-bg);
+}
+
+/* For Chrome, Edge, and Safari */
+*::-webkit-scrollbar {
+  width: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--pip-boy-bg);
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: var(--pip-boy-text);
+  border-radius: 0;
+  border: 1px solid var(--pip-boy-bg);
+}
+
+/* Sidebar animation */
+@keyframes pulse-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 5px 1px rgba(0, 255, 0, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 10px 3px rgba(0, 255, 0, 0.8);
+  }
+}
+
+.pulse-glow {
+  animation: pulse-glow 2s infinite;
+}
+
+/* Task completion animations */
+@keyframes task-flash {
+  0% {
+    background-color: transparent;
+    box-shadow: none;
+  }
+  20% {
+    background-color: rgba(0, 255, 0, 0.3);
+    box-shadow: 0 0 15px 5px rgba(0, 255, 0, 0.7);
+  }
+  100% {
+    background-color: rgba(0, 255, 0, 0.1);
+    box-shadow: none;
+  }
+}
+
+.task-flash {
+  animation: task-flash 1s ease-out forwards;
+}
+
+@keyframes task-fade {
+  0% {
+    opacity: 1;
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.6;
+  }
+}
+
+.task-fade {
+  animation: task-fade 1.5s ease-out forwards;
+}
+
+/* XP gain animation */
+@keyframes xp-appear {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-15px);
+  }
+}
+
+.xp-appear {
+  animation: xp-appear 2s ease-out forwards;
+}
+
+@keyframes xp-fill {
+  0% {
+    width: var(--initial-width);
+  }
+  50% {
+    width: var(--target-width);
+  }
+  60% {
+    width: calc(var(--target-width) + 2%);
+  }
+  100% {
+    width: var(--target-width);
+  }
+}
+
+.xp-fill {
+  animation: xp-fill 1s ease-out forwards;
+}
+
+/* Terminal update effect */
+@keyframes terminal-flicker {
+  0% {
+    opacity: 1;
+  }
+  10% {
+    opacity: 0.8;
+  }
+  12% {
+    opacity: 1;
+  }
+  14% {
+    opacity: 0.9;
+  }
+  16% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.terminal-flicker {
+  animation: terminal-flicker 0.5s ease-out;
+}
+
+/* Scanline animation */
+@keyframes scanline {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(100%);
+  }
+}
+
+.scanline-animation::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 10px;
+  background: linear-gradient(to bottom, rgba(0, 255, 0, 0.2), rgba(0, 255, 0, 0.5), rgba(0, 255, 0, 0.2));
+  z-index: 10;
+  pointer-events: none;
+  animation: scanline 1s linear;
+}
