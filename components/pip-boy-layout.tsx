@@ -8,8 +8,8 @@ import { Menu } from "lucide-react"
 
 interface PipBoyLayoutProps {
   children: ReactNode
-  activeTab: "tasks" | "stats" | "inventory"
-  setActiveTab: (tab: "tasks" | "stats" | "inventory") => void
+  activeTab: "tasks" | "stats" | "inventory" | "store"
+  setActiveTab: (tab: "tasks" | "stats" | "inventory" | "store") => void
 }
 
 export function PipBoyLayout({ children, activeTab, setActiveTab }: PipBoyLayoutProps) {
@@ -99,7 +99,7 @@ export function PipBoyLayout({ children, activeTab, setActiveTab }: PipBoyLayout
   }
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-[#0b3d0b] text-[#00ff00] font-mono">
+    <div className="relative h-screen w-screen overflow-hidden bg-[#0b3d0b] text-[#00ff00] font-mono sm:pb-8 md:pb-0 lg:pb-0">
       {/* Global screen effects */}
       <div className="horizontal-scanlines"></div>
       <div className="moving-scanline"></div>
@@ -139,10 +139,10 @@ export function PipBoyLayout({ children, activeTab, setActiveTab }: PipBoyLayout
           </div>
 
           <div className="flex justify-around mt-4">
-            {["tasks", "stats", "inventory"].map((tab) => (
+            {["tasks", "stats", "inventory", "store"].map((tab) => (
               <button
                 key={tab}
-                onClick={() => setActiveTab(tab as "tasks" | "stats" | "inventory")}
+                onClick={() => setActiveTab(tab as "tasks" | "stats" | "inventory" | "store")}
                 className={cn(
                   "uppercase text-lg md:text-xl py-2 px-4 border-2 border-[#00ff00] rounded-t-md transition-all",
                   activeTab === tab

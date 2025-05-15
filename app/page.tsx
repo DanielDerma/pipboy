@@ -8,16 +8,17 @@ import { TaskPanel } from "@/components/task-panel"
 import { CharacterPanel } from "@/components/character-panel"
 import { PWAInstallPrompt } from "@/components/pwa-install-prompt"
 import { OfflineIndicator } from "@/components/offline-indicator"
+import { StoreTab } from "@/components/store-tab"
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<"tasks" | "stats" | "inventory">("tasks")
+  const [activeTab, setActiveTab] = useState<"tasks" | "stats" | "inventory" | "store">("tasks")
 
   // Check URL parameters for initial tab
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const tabParam = params.get("tab")
-    if (tabParam && ["tasks", "stats", "inventory"].includes(tabParam)) {
-      setActiveTab(tabParam as "tasks" | "stats" | "inventory")
+    if (tabParam && ["tasks", "stats", "inventory", "store"].includes(tabParam)) {
+      setActiveTab(tabParam as "tasks" | "stats" | "inventory" | "store")
     }
   }, [])
 
@@ -44,6 +45,7 @@ export default function Home() {
           </div>
         )}
         {activeTab === "inventory" && <InventoryTab />}
+        {activeTab === "store" && <StoreTab />}
       </PipBoyLayout>
       <PWAInstallPrompt />
       <OfflineIndicator />

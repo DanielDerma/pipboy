@@ -1,6 +1,7 @@
 import type React from "react"
 import { cn } from "@/lib/utils"
 import { RetroBox } from "@/components/retro-box"
+import { PixelProgressBar } from "@/components/pixel-progress-bar"
 import {
   Shield,
   Sword,
@@ -33,6 +34,22 @@ export function CharacterPanel() {
     { id: "ring", name: "Rad Ring", icon: Ring, equipped: true, slot: "finger" },
     { id: "scroll", name: "Tech Manual", icon: Scroll, equipped: false, slot: "consumable" },
     { id: "heart", name: "Stimpak", icon: Heart, equipped: false, slot: "consumable" },
+  ]
+
+
+  const skills = [
+    { name: "Small Guns", value: 65 },
+    { name: "Big Guns", value: 30 },
+    { name: "Energy Weapons", value: 45 },
+    { name: "Unarmed", value: 55 },
+    { name: "Melee Weapons", value: 40 },
+    { name: "Throwing", value: 35 },
+    { name: "First Aid", value: 70 },
+    { name: "Doctor", value: 50 },
+    { name: "Sneak", value: 60 },
+    { name: "Lockpick", value: 75 },
+    { name: "Science", value: 80 },
+    { name: "Repair", value: 65 },
   ]
 
   // Filter equipped items
@@ -121,54 +138,24 @@ export function CharacterPanel() {
             </div>
           </RetroBox>
         </div>
-
-        {/* Inventory Grid */}
-        <div className="md:col-span-2">
-          <RetroBox>
-            <div className="p-2 space-y-4">
-              <h3 className="text-lg uppercase glow-text">Inventory</h3>
-
-              <div className="grid grid-cols-3 md:grid-cols-4 gap-3">
-                {inventoryItems.map((item) => (
-                  <div
-                    key={item.id}
-                    className={cn(
-                      "aspect-square border-2 border-[#00ff00] rounded-sm",
-                      "flex flex-col items-center justify-center p-2",
-                      "hover:bg-[#00ff00]/20 cursor-pointer transition-colors",
-                      "relative overflow-hidden",
-                      item.equipped ? "bg-[#00ff00]/20" : "bg-[#0b3d0b]/50",
-                    )}
-                    title={item.name}
-                  >
-                    {/* Scanline effect */}
-                    <div className="absolute inset-0 bg-scanlines opacity-20 pointer-events-none"></div>
-
-                    {/* Item icon */}
-                    <div className="w-8 h-8 flex items-center justify-center mb-1">
-                      <item.icon
-                        className={cn("w-6 h-6", item.equipped ? "text-[#00ff00] glow-text" : "text-[#00ff00]/70")}
-                      />
-                    </div>
-
-                    {/* Item name */}
-                    <div className="text-xs text-center truncate w-full">{item.name}</div>
-
-                    {/* Equipped indicator */}
-                    {item.equipped && (
-                      <div className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[#00ff00] pulse-glow"></div>
-                    )}
-                  </div>
-                ))}
+        {// Skills}
+      <div className="md:col-span-2">
+      <RetroBox>
+        <h2 className="text-xl uppercase glow-text mb-4">Skills</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {skills.map((skill) => (
+            <div key={skill.name} className="space-y-1">
+              <div className="flex justify-between">
+                <span>{skill.name}</span>
+                <span>{skill.value}%</span>
               </div>
-
-              <div className="text-xs text-[#00ff00]/70 mt-2">
-                Equipped items are highlighted. Click to equip/unequip.
-              </div>
+              <PixelProgressBar value={skill.value} />
             </div>
-          </RetroBox>
+          ))}
         </div>
+      </RetroBox>
       </div>
+      </div      
     </div>
   )
 }

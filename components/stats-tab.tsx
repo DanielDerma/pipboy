@@ -12,20 +12,7 @@ export function StatsTab() {
     { name: "LUCK", value: 5, max: 10 },
   ]
 
-  const skills = [
-    { name: "Small Guns", value: 65 },
-    { name: "Big Guns", value: 30 },
-    { name: "Energy Weapons", value: 45 },
-    { name: "Unarmed", value: 55 },
-    { name: "Melee Weapons", value: 40 },
-    { name: "Throwing", value: 35 },
-    { name: "First Aid", value: 70 },
-    { name: "Doctor", value: 50 },
-    { name: "Sneak", value: 60 },
-    { name: "Lockpick", value: 75 },
-    { name: "Science", value: 80 },
-    { name: "Repair", value: 65 },
-  ]
+  
 
   return (
     <div className="space-y-6">
@@ -48,20 +35,7 @@ export function StatsTab() {
         </div>
       </RetroBox>
 
-      <RetroBox>
-        <h2 className="text-xl uppercase glow-text mb-4">Skills</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {skills.map((skill) => (
-            <div key={skill.name} className="space-y-1">
-              <div className="flex justify-between">
-                <span>{skill.name}</span>
-                <span>{skill.value}%</span>
-              </div>
-              <PixelProgressBar value={skill.value} />
-            </div>
-          ))}
-        </div>
-      </RetroBox>
+
     </div>
   )
 }
