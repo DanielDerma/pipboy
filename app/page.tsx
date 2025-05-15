@@ -14,6 +14,7 @@ import { NotificationToast } from "@/components/notification-toast"
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<"tasks" | "stats" | "inventory" | "store">("tasks")
+  const [dbInitialized, setDbInitialized] = useState(false)
 
   // Check URL parameters for initial tab
   useEffect(() => {
@@ -30,6 +31,12 @@ export default function Home() {
     url.searchParams.set("tab", activeTab)
     window.history.replaceState({}, "", url.toString())
   }, [activeTab])
+
+  // Function to handle database initialization completion
+  const handleDbInitialized = () => {
+    setDbInitialized(true)
+    console.log("Database initialization complete, app is ready")
+  }
 
   return (
     <>
