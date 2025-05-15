@@ -156,7 +156,7 @@ export function CharacterPanel() {
         </div>
       </RetroBox>
       </div>
-      </div      
+      </div>     
     </div>
   )
 }
