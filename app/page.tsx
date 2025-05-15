@@ -9,6 +9,8 @@ import { CharacterPanel } from "@/components/character-panel"
 import { PWAInstallPrompt } from "@/components/pwa-install-prompt"
 import { OfflineIndicator } from "@/components/offline-indicator"
 import { StoreTab } from "@/components/store-tab"
+import { DatabaseInitializer } from "@/components/db-initializer"
+import { NotificationToast } from "@/components/notification-toast"
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<"tasks" | "stats" | "inventory" | "store">("tasks")
@@ -31,6 +33,7 @@ export default function Home() {
 
   return (
     <>
+      <DatabaseInitializer />
       <PipBoyLayout activeTab={activeTab} setActiveTab={setActiveTab}>
         {activeTab === "tasks" && (
           <div className="space-y-6">
@@ -49,6 +52,7 @@ export default function Home() {
       </PipBoyLayout>
       <PWAInstallPrompt />
       <OfflineIndicator />
+      <NotificationToast />
     </>
   )
 }

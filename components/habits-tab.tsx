@@ -1,55 +1,18 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Plus, Minus, Edit, Trash2, AlertCircle } from "lucide-react"
+import { Plus, Minus, Edit, Trash2, AlertCircle, Loader2 } from "lucide-react"
 import { XPIndicator } from "@/components/xp-indicator"
 import { RetroModal } from "@/components/retro-modal"
 import { RetroFormField } from "@/components/retro-form-field"
 import { cn } from "@/lib/utils"
-
-type Habit = {
-  id: number
-  name: string
-  count: number
-  positive: boolean
-  negative: boolean
-  xpValue: number
-  description?: string
-  animating?: boolean
-}
+import { habitsDB, type Habit } from "@/lib/db-service"
+import { notificationService } from "@/lib/notification-service"
 
 export function HabitsTab() {
-  const [habits, setHabits] = useState<Habit[]>([
-    {
-      id: 1,
-      name: "Exercise",
-      count: 0,
-      positive: true,
-      negative: false,
-      xpValue: 10,
-      description: "Stay fit in the wasteland",
-    },
-    { id: 2, name: "Drink Water", count: 0, positive: true, negative: false, xpValue: 5, description: "Stay hydrated" },
-    { id: 3, name: "Meditate", count: 0, positive: true, negative: false, xpValue: 8, description: "Clear your mind" },
-    {
-      id: 4,
-      name: "Eat Junk Food",
-      count: 0,
-      positive: false,
-      negative: true,
-      xpValue: 5,
-      description: "Unhealthy but tasty",
-    },
-    {
-      id: 5,
-      name: "Skip Workout",
-      count: 0,
-      positive: false,
-      negative: true,
-      xpValue: 10,
-      description: "Missing training sessions",
-    },
-  ])
+  const [habits, setHabits] = useState<Habit[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const [xpGain, setXpGain] = useState({ amount: 0, show: false })
   const [currentXp, setCurrentXp] = useState(2750)
@@ -61,9 +24,16 @@ export function HabitsTab() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [currentHabit, setCurrentHabit] = useState<Habit | null>(null)
+  const [isProcessing, setIsProcessing] = useState(false)
 
   // Form state
-  const [formData, setFormData] = useState<Omit<Habit, "id" | "count" | "animating">>({
+  const [formData, setFormData] = useState<{
+    name: string
+    positive: boolean
+    negative: boolean
+    xpValue: number
+    description: string
+  }>({
     name: "",
     positive: true,
     negative: false,
@@ -74,42 +44,76 @@ export function HabitsTab() {
   // Calculate XP percentage
   const xpPercentage = (currentXp / maxXp) * 100
 
-  const incrementHabit = (id: number) => {
-    setHabits(
-      habits.map((habit) => {
-        if (habit.id === id) {
-          // Show XP gain and update XP
-          setXpGain({ amount: habit.xpValue, show: true })
-          setCurrentXp((prev) => Math.min(prev + habit.xpValue, maxXp))
+  // Load habits from IndexedDB
+  useEffect(() => {
+    const loadHabits = async () => {
+      try {
+        setIsLoading(true)
+        const data = await habitsDB.getAll()
+        setHabits(data)
+        setError(null)
+      } catch (err) {
+        console.error("Failed to load habits:", err)
+        setError("Failed to load habits. Please try again.")
+        notificationService.error("Failed to load habits")
+      } finally {
+        setIsLoading(false)
+      }
+    }
 
-          return {
-            ...habit,
-            count: habit.count + 1,
-            animating: true,
-          }
-        }
-        return habit
-      }),
-    )
+    loadHabits()
+  }, [])
+
+  const incrementHabit = async (habit: Habit) => {
+    try {
+      const updatedHabit = {
+        ...habit,
+        count: habit.count + 1,
+      }
+
+      // Update in IndexedDB
+      await habitsDB.update(updatedHabit)
+
+      // Update local state
+      setHabits((prevHabits) =>
+        prevHabits.map((h) => (h.id === habit.id ? { ...h, count: h.count + 1, animating: true } : h)),
+      )
+
+      // Show XP gain and update XP
+      setXpGain({ amount: habit.xpValue, show: true })
+      setCurrentXp((prev) => Math.min(prev + habit.xpValue, maxXp))
+
+      notificationService.success(`Incremented ${habit.name}`)
+    } catch (err) {
+      console.error("Failed to increment habit:", err)
+      notificationService.error("Failed to update habit")
+    }
   }
 
-  const decrementHabit = (id: number) => {
-    setHabits(
-      habits.map((habit) => {
-        if (habit.id === id) {
-          // Reduce XP for negative habits
-          setXpGain({ amount: -habit.xpValue, show: true })
-          setCurrentXp((prev) => Math.max(prev - habit.xpValue, 0))
+  const decrementHabit = async (habit: Habit) => {
+    try {
+      const updatedHabit = {
+        ...habit,
+        count: habit.count - 1,
+      }
 
-          return {
-            ...habit,
-            count: habit.count - 1,
-            animating: true,
-          }
-        }
-        return habit
-      }),
-    )
+      // Update in IndexedDB
+      await habitsDB.update(updatedHabit)
+
+      // Update local state
+      setHabits((prevHabits) =>
+        prevHabits.map((h) => (h.id === habit.id ? { ...h, count: h.count - 1, animating: true } : h)),
+      )
+
+      // Reduce XP for negative habits
+      setXpGain({ amount: -habit.xpValue, show: true })
+      setCurrentXp((prev) => Math.max(prev - habit.xpValue, 0))
+
+      notificationService.success(`Decremented ${habit.name}`)
+    } catch (err) {
+      console.error("Failed to decrement habit:", err)
+      notificationService.error("Failed to update habit")
+    }
   }
 
   // Update XP bar width with animation
@@ -144,53 +148,88 @@ export function HabitsTab() {
   }
 
   // Create new habit
-  const handleCreateHabit = () => {
-    const newId = habits.length > 0 ? Math.max(...habits.map((h) => h.id)) + 1 : 1
+  const handleCreateHabit = async () => {
+    try {
+      setIsProcessing(true)
 
-    const newHabit: Habit = {
-      id: newId,
-      name: formData.name,
-      count: 0,
-      positive: formData.positive,
-      negative: formData.negative,
-      xpValue: formData.xpValue,
-      description: formData.description,
+      // Create new habit in IndexedDB
+      const newHabit = await habitsDB.add({
+        name: formData.name,
+        positive: formData.positive,
+        negative: formData.negative,
+        xpValue: formData.xpValue,
+        description: formData.description,
+      })
+
+      // Update local state
+      setHabits((prevHabits) => [...prevHabits, newHabit])
+
+      resetForm()
+      setIsCreateModalOpen(false)
+      notificationService.success("Habit created successfully")
+    } catch (err) {
+      console.error("Failed to create habit:", err)
+      notificationService.error("Failed to create habit")
+    } finally {
+      setIsProcessing(false)
     }
-
-    setHabits([...habits, newHabit])
-    resetForm()
-    setIsCreateModalOpen(false)
   }
 
   // Edit habit
-  const handleEditHabit = () => {
+  const handleEditHabit = async () => {
     if (!currentHabit) return
 
-    setHabits(
-      habits.map((habit) =>
-        habit.id === currentHabit.id
-          ? {
-              ...habit,
-              name: formData.name,
-              positive: formData.positive,
-              negative: formData.negative,
-              xpValue: formData.xpValue,
-              description: formData.description,
-            }
-          : habit,
-      ),
-    )
+    try {
+      setIsProcessing(true)
 
-    resetForm()
-    setIsEditModalOpen(false)
+      const updatedHabit: Habit = {
+        ...currentHabit,
+        name: formData.name,
+        positive: formData.positive,
+        negative: formData.negative,
+        xpValue: formData.xpValue,
+        description: formData.description,
+        updatedAt: Date.now(),
+      }
+
+      // Update in IndexedDB
+      await habitsDB.update(updatedHabit)
+
+      // Update local state
+      setHabits((prevHabits) => prevHabits.map((habit) => (habit.id === currentHabit.id ? updatedHabit : habit)))
+
+      resetForm()
+      setIsEditModalOpen(false)
+      notificationService.success("Habit updated successfully")
+    } catch (err) {
+      console.error("Failed to update habit:", err)
+      notificationService.error("Failed to update habit")
+    } finally {
+      setIsProcessing(false)
+    }
   }
 
   // Delete habit
-  const handleDeleteHabit = () => {
+  const handleDeleteHabit = async () => {
     if (!currentHabit) return
 
-    setHabits(habits.filter((habit) => habit.id !== currentHabit.id))
-    setIsDeleteModalOpen(false)
+    try {
+      setIsProcessing(true)
+
+      // Delete from IndexedDB
+      await habitsDB.delete(currentHabit.id)
+
+      // Update local state
+      setHabits((prevHabits) => prevHabits.filter((habit) => habit.id !== currentHabit.id))
+
+      setIsDeleteModalOpen(false)
+      notificationService.success("Habit deleted successfully")
+    } catch (err) {
+      console.error("Failed to delete habit:", err)
+      notificationService.error("Failed to delete habit")
+    } finally {
+      setIsProcessing(false)
+    }
   }
 
   // Open edit modal and populate form
@@ -264,7 +303,23 @@ export function HabitsTab() {
         </div>
       </div>
 
-      {habits.length === 0 ? (
+      {isLoading ? (
+        <div className="flex flex-col items-center justify-center py-10 text-center border-2 border-[#00ff00]/50 bg-[#0b3d0b]/30 rounded-sm">
+          <Loader2 className="w-10 h-10 mb-2 text-[#00ff00]/70 animate-spin" />
+          <p>Loading habits...</p>
+        </div>
+      ) : error ? (
+        <div className="flex flex-col items-center justify-center py-10 text-center border-2 border-[#ff6b6b]/50 bg-[#0b3d0b]/30 rounded-sm">
+          <AlertCircle className="w-10 h-10 mb-2 text-[#ff6b6b]/70" />
+          <p>{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-4 py-2 px-4 border-2 border-[#00ff00] rounded-sm uppercase text-sm bg-[#00ff00]/20 hover:bg-[#00ff00]/30"
+          >
+            Retry
+          </button>
+        </div>
+      ) : habits.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-10 text-center border-2 border-[#00ff00]/50 bg-[#0b3d0b]/30 rounded-sm">
           <AlertCircle className="w-10 h-10 mb-2 text-[#00ff00]/70" />
           <p>No habits created yet.</p>
@@ -289,7 +344,7 @@ export function HabitsTab() {
               <div className="col-span-4 flex justify-end space-x-2">
                 {habit.positive && (
                   <button
-                    onClick={() => incrementHabit(habit.id)}
+                    onClick={() => incrementHabit(habit)}
                     className="w-8 h-8 border-2 border-[#00ff00] rounded-sm flex items-center justify-center hover:bg-[#00ff00]/20"
                     title="Increment"
                   >
@@ -298,7 +353,7 @@ export function HabitsTab() {
                 )}
                 {habit.negative && (
                   <button
-                    onClick={() => decrementHabit(habit.id)}
+                    onClick={() => decrementHabit(habit)}
                     className="w-8 h-8 border-2 border-[#00ff00] rounded-sm flex items-center justify-center hover:bg-[#00ff00]/20"
                     title="Decrement"
                   >
@@ -398,19 +453,21 @@ export function HabitsTab() {
               type="button"
               onClick={() => setIsCreateModalOpen(false)}
               className="py-2 px-4 border-2 border-[#00ff00] rounded-sm uppercase text-sm"
+              disabled={isProcessing}
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={!formData.name || (!formData.positive && !formData.negative)}
+              disabled={!formData.name || (!formData.positive && !formData.negative) || isProcessing}
               className={cn(
-                "py-2 px-4 border-2 border-[#00ff00] rounded-sm uppercase text-sm",
-                formData.name && (formData.positive || formData.negative)
+                "py-2 px-4 border-2 border-[#00ff00] rounded-sm uppercase text-sm flex items-center justify-center gap-2",
+                formData.name && (formData.positive || formData.negative) && !isProcessing
                   ? "bg-[#00ff00]/20 hover:bg-[#00ff00]/30"
                   : "bg-[#0b3d0b]/50 opacity-50 cursor-not-allowed",
               )}
             >
+              {isProcessing && <Loader2 className="w-4 h-4 animate-spin" />}
               Create
             </button>
           </div>
@@ -486,19 +543,21 @@ export function HabitsTab() {
               type="button"
               onClick={() => setIsEditModalOpen(false)}
               className="py-2 px-4 border-2 border-[#00ff00] rounded-sm uppercase text-sm"
+              disabled={isProcessing}
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={!formData.name || (!formData.positive && !formData.negative)}
+              disabled={!formData.name || (!formData.positive && !formData.negative) || isProcessing}
               className={cn(
-                "py-2 px-4 border-2 border-[#00ff00] rounded-sm uppercase text-sm",
-                formData.name && (formData.positive || formData.negative)
+                "py-2 px-4 border-2 border-[#00ff00] rounded-sm uppercase text-sm flex items-center justify-center gap-2",
+                formData.name && (formData.positive || formData.negative) && !isProcessing
                   ? "bg-[#00ff00]/20 hover:bg-[#00ff00]/30"
                   : "bg-[#0b3d0b]/50 opacity-50 cursor-not-allowed",
               )}
             >
+              {isProcessing && <Loader2 className="w-4 h-4 animate-spin" />}
               Save Changes
             </button>
           </div>
@@ -517,13 +576,21 @@ export function HabitsTab() {
             <button
               onClick={() => setIsDeleteModalOpen(false)}
               className="py-2 px-4 border-2 border-[#00ff00] rounded-sm uppercase text-sm"
+              disabled={isProcessing}
             >
               Cancel
             </button>
             <button
               onClick={handleDeleteHabit}
-              className="py-2 px-4 border-2 border-[#ff6b6b] bg-[#ff6b6b]/20 hover:bg-[#ff6b6b]/30 rounded-sm uppercase text-sm text-[#ff6b6b]"
+              disabled={isProcessing}
+              className={cn(
+                "py-2 px-4 border-2 border-[#ff6b6b] rounded-sm uppercase text-sm text-[#ff6b6b] flex items-center justify-center gap-2",
+                isProcessing
+                  ? "bg-[#0b3d0b]/50 opacity-50 cursor-not-allowed"
+                  : "bg-[#ff6b6b]/20 hover:bg-[#ff6b6b]/30",
+              )}
             >
+              {isProcessing && <Loader2 className="w-4 h-4 animate-spin" />}
               Delete
             </button>
           </div>

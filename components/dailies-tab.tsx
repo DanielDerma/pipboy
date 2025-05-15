@@ -1,71 +1,18 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Check, Edit, Trash2, Plus, AlertCircle, Calendar } from "lucide-react"
+import { Check, Edit, Trash2, Plus, AlertCircle, Calendar, Loader2 } from "lucide-react"
 import { XPIndicator } from "@/components/xp-indicator"
 import { RetroModal } from "@/components/retro-modal"
 import { RetroFormField } from "@/components/retro-form-field"
 import { cn } from "@/lib/utils"
-
-type Daily = {
-  id: number
-  name: string
-  completed: boolean
-  streak: number
-  dueDate: string
-  xpValue: number
-  description?: string
-  animating?: boolean
-}
+import { dailiesDB, type Daily } from "@/lib/db-service"
+import { notificationService } from "@/lib/notification-service"
 
 export function DailiesTab() {
-  const [dailies, setDailies] = useState<Daily[]>([
-    {
-      id: 1,
-      name: "Morning Routine",
-      completed: false,
-      streak: 3,
-      dueDate: "Today",
-      xpValue: 10,
-      description: "Complete morning tasks",
-    },
-    {
-      id: 2,
-      name: "Check Radiation Levels",
-      completed: true,
-      streak: 7,
-      dueDate: "Today",
-      xpValue: 15,
-      description: "Monitor radiation in the area",
-    },
-    {
-      id: 3,
-      name: "Scavenge Supplies",
-      completed: false,
-      streak: 2,
-      dueDate: "Today",
-      xpValue: 20,
-      description: "Find useful items",
-    },
-    {
-      id: 4,
-      name: "Patrol Perimeter",
-      completed: false,
-      streak: 5,
-      dueDate: "Today",
-      xpValue: 25,
-      description: "Check for threats",
-    },
-    {
-      id: 5,
-      name: "Maintain Weapons",
-      completed: false,
-      streak: 1,
-      dueDate: "Today",
-      xpValue: 30,
-      description: "Keep weapons in good condition",
-    },
-  ])
+  const [dailies, setDailies] = useState<Daily[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const [xpGain, setXpGain] = useState({ amount: 0, show: false })
   const [currentXp, setCurrentXp] = useState(2750)
@@ -77,9 +24,15 @@ export function DailiesTab() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [currentDaily, setCurrentDaily] = useState<Daily | null>(null)
+  const [isProcessing, setIsProcessing] = useState(false)
 
   // Form state
-  const [formData, setFormData] = useState<Omit<Daily, "id" | "completed" | "streak" | "animating">>({
+  const [formData, setFormData] = useState<{
+    name: string
+    dueDate: string
+    xpValue: number
+    description: string
+  }>({
     name: "",
     dueDate: "Today",
     xpValue: 10,
@@ -89,36 +42,70 @@ export function DailiesTab() {
   // Calculate XP percentage
   const xpPercentage = (currentXp / maxXp) * 100
 
-  const toggleDaily = (id: number) => {
-    setDailies(
-      dailies.map((daily) => {
-        if (daily.id === id) {
-          // If completing the task
-          if (!daily.completed) {
-            // Show XP gain and update XP
-            setXpGain({ amount: daily.xpValue, show: true })
-            setCurrentXp((prev) => Math.min(prev + daily.xpValue, maxXp))
+  // Load dailies from IndexedDB
+  useEffect(() => {
+    const loadDailies = async () => {
+      try {
+        setIsLoading(true)
+        const data = await dailiesDB.getAll()
+        setDailies(data)
+        setError(null)
+      } catch (err) {
+        console.error("Failed to load dailies:", err)
+        setError("Failed to load dailies. Please try again.")
+        notificationService.error("Failed to load dailies")
+      } finally {
+        setIsLoading(false)
+      }
+    }
 
-            // Return with animation flag
-            return {
-              ...daily,
-              completed: true,
-              streak: daily.streak + 1,
-              animating: true,
-            }
-          } else {
-            // If uncompleting the task
-            setCurrentXp((prev) => Math.max(prev - daily.xpValue, 0))
-            return {
-              ...daily,
-              completed: false,
-              streak: Math.max(daily.streak - 1, 0),
+    loadDailies()
+  }, [])
+
+  const toggleDaily = async (daily: Daily) => {
+    try {
+      const now = Date.now()
+      const updatedDaily = {
+        ...daily,
+        completed: !daily.completed,
+        streak: !daily.completed ? daily.streak + 1 : Math.max(daily.streak - 1, 0),
+        lastCompletedAt: !daily.completed ? now : undefined,
+        updatedAt: now,
+      }
+
+      // Update in IndexedDB
+      await dailiesDB.update(updatedDaily)
+
+      // Update local state
+      setDailies((prevDailies) =>
+        prevDailies.map((d) => {
+          if (d.id === daily.id) {
+            // If completing the task
+            if (!daily.completed) {
+              // Show XP gain and update XP
+              setXpGain({ amount: daily.xpValue, show: true })
+              setCurrentXp((prev) => Math.min(prev + daily.xpValue, maxXp))
+
+              // Return with animation flag
+              return {
+                ...updatedDaily,
+                animating: true,
+              }
+            } else {
+              // If uncompleting the task
+              setCurrentXp((prev) => Math.max(prev - daily.xpValue, 0))
+              return updatedDaily
             }
           }
-        }
-        return daily
-      }),
-    )
+          return d
+        }),
+      )
+
+      notificationService.success(daily.completed ? `Unmarked ${daily.name} as complete` : `Completed ${daily.name}`)
+    } catch (err) {
+      console.error("Failed to toggle daily:", err)
+      notificationService.error("Failed to update daily")
+    }
   }
 
   // Update XP bar width with animation
@@ -153,52 +140,86 @@ export function DailiesTab() {
   }
 
   // Create new daily
-  const handleCreateDaily = () => {
-    const newId = dailies.length > 0 ? Math.max(...dailies.map((d) => d.id)) + 1 : 1
+  const handleCreateDaily = async () => {
+    try {
+      setIsProcessing(true)
 
-    const newDaily: Daily = {
-      id: newId,
-      name: formData.name,
-      completed: false,
-      streak: 0,
-      dueDate: formData.dueDate,
-      xpValue: formData.xpValue,
-      description: formData.description,
+      // Create new daily in IndexedDB
+      const newDaily = await dailiesDB.add({
+        name: formData.name,
+        dueDate: formData.dueDate,
+        xpValue: formData.xpValue,
+        description: formData.description,
+      })
+
+      // Update local state
+      setDailies((prevDailies) => [...prevDailies, newDaily])
+
+      resetForm()
+      setIsCreateModalOpen(false)
+      notificationService.success("Daily created successfully")
+    } catch (err) {
+      console.error("Failed to create daily:", err)
+      notificationService.error("Failed to create daily")
+    } finally {
+      setIsProcessing(false)
     }
-
-    setDailies([...dailies, newDaily])
-    resetForm()
-    setIsCreateModalOpen(false)
   }
 
   // Edit daily
-  const handleEditDaily = () => {
+  const handleEditDaily = async () => {
     if (!currentDaily) return
 
-    setDailies(
-      dailies.map((daily) =>
-        daily.id === currentDaily.id
-          ? {
-              ...daily,
-              name: formData.name,
-              dueDate: formData.dueDate,
-              xpValue: formData.xpValue,
-              description: formData.description,
-            }
-          : daily,
-      ),
-    )
+    try {
+      setIsProcessing(true)
 
-    resetForm()
-    setIsEditModalOpen(false)
+      const updatedDaily: Daily = {
+        ...currentDaily,
+        name: formData.name,
+        dueDate: formData.dueDate,
+        xpValue: formData.xpValue,
+        description: formData.description,
+        updatedAt: Date.now(),
+      }
+
+      // Update in IndexedDB
+      await dailiesDB.update(updatedDaily)
+
+      // Update local state
+      setDailies((prevDailies) => prevDailies.map((daily) => (daily.id === currentDaily.id ? updatedDaily : daily)))
+
+      resetForm()
+      setIsEditModalOpen(false)
+      notificationService.success("Daily updated successfully")
+    } catch (err) {
+      console.error("Failed to update daily:", err)
+      notificationService.error("Failed to update daily")
+    } finally {
+      setIsProcessing(false)
+    }
   }
 
   // Delete daily
-  const handleDeleteDaily = () => {
+  const handleDeleteDaily = async () => {
     if (!currentDaily) return
 
-    setDailies(dailies.filter((daily) => daily.id !== currentDaily.id))
-    setIsDeleteModalOpen(false)
+    try {
+      setIsProcessing(true)
+
+      // Delete from IndexedDB
+      await dailiesDB.delete(currentDaily.id)
+
+      // Update local state
+      setDailies((prevDailies) => prevDailies.filter((daily) => daily.id !== currentDaily.id))
+
+      setIsDeleteModalOpen(false)
+      notificationService.success("Daily deleted successfully")
+    } catch (err) {
+      console.error("Failed to delete daily:", err)
+      notificationService.error("Failed to delete daily")
+    } finally {
+      setIsProcessing(false)
+    }
   }
 
   // Open edit modal and populate form
@@ -280,7 +301,23 @@ export function DailiesTab() {
         </div>
       </div>
 
-      {dailies.length === 0 ? (
+      {isLoading ? (
+        <div className="flex flex-col items-center justify-center py-10 text-center border-2 border-[#00ff00]/50 bg-[#0b3d0b]/30 rounded-sm">
+          <Loader2 className="w-10 h-10 mb-2 text-[#00ff00]/70 animate-spin" />
+          <p>Loading dailies...</p>
+        </div>
+      ) : error ? (
+        <div className="flex flex-col items-center justify-center py-10 text-center border-2 border-[#ff6b6b]/50 bg-[#0b3d0b]/30 rounded-sm">
+          <AlertCircle className="w-10 h-10 mb-2 text-[#ff6b6b]/70" />
+          <p>{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-4 py-2 px-4 border-2 border-[#00ff00] rounded-sm uppercase text-sm bg-[#00ff00]/20 hover:bg-[#00ff00]/30"
+          >
+            Retry
+          </button>
+        </div>
+      ) : dailies.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-10 text-center border-2 border-[#00ff00]/50 bg-[#0b3d0b]/30 rounded-sm">
           <AlertCircle className="w-10 h-10 mb-2 text-[#00ff00]/70" />
           <p>No daily tasks created yet.</p>
@@ -297,7 +334,7 @@ export function DailiesTab() {
             >
               <div className="col-span-1">
                 <button
-                  onClick={() => toggleDaily(daily.id)}
+                  onClick={() => toggleDaily(daily)}
                   className={`w-6 h-6 border-2 ${
                     daily.completed ? "bg-[#00ff00] border-[#00ff00]" : "bg-transparent border-[#00ff00]"
                   } rounded-sm flex items-center justify-center`}
@@ -396,19 +433,21 @@ export function DailiesTab() {
               type="button"
               onClick={() => setIsCreateModalOpen(false)}
               className="py-2 px-4 border-2 border-[#00ff00] rounded-sm uppercase text-sm"
+              disabled={isProcessing}
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={!formData.name}
+              disabled={!formData.name || isProcessing}
               className={cn(
-                "py-2 px-4 border-2 border-[#00ff00] rounded-sm uppercase text-sm",
-                formData.name
+                "py-2 px-4 border-2 border-[#00ff00] rounded-sm uppercase text-sm flex items-center justify-center gap-2",
+                formData.name && !isProcessing
                   ? "bg-[#00ff00]/20 hover:bg-[#00ff00]/30"
                   : "bg-[#0b3d0b]/50 opacity-50 cursor-not-allowed",
               )}
             >
+              {isProcessing && <Loader2 className="w-4 h-4 animate-spin" />}
               Create
             </button>
           </div>
@@ -470,19 +509,21 @@ export function DailiesTab() {
               type="button"
               onClick={() => setIsEditModalOpen(false)}
               className="py-2 px-4 border-2 border-[#00ff00] rounded-sm uppercase text-sm"
+              disabled={isProcessing}
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={!formData.name}
+              disabled={!formData.name || isProcessing}
               className={cn(
-                "py-2 px-4 border-2 border-[#00ff00] rounded-sm uppercase text-sm",
-                formData.name
+                "py-2 px-4 border-2 border-[#00ff00] rounded-sm uppercase text-sm flex items-center justify-center gap-2",
+                formData.name && !isProcessing
                   ? "bg-[#00ff00]/20 hover:bg-[#00ff00]/30"
                   : "bg-[#0b3d0b]/50 opacity-50 cursor-not-allowed",
               )}
             >
+              {isProcessing && <Loader2 className="w-4 h-4 animate-spin" />}
               Save Changes
             </button>
           </div>
@@ -501,13 +542,21 @@ export function DailiesTab() {
             <button
               onClick={() => setIsDeleteModalOpen(false)}
               className="py-2 px-4 border-2 border-[#00ff00] rounded-sm uppercase text-sm"
+              disabled={isProcessing}
             >
               Cancel
             </button>
             <button
               onClick={handleDeleteDaily}
-              className="py-2 px-4 border-2 border-[#ff6b6b] bg-[#ff6b6b]/20 hover:bg-[#ff6b6b]/30 rounded-sm uppercase text-sm text-[#ff6b6b]"
+              disabled={isProcessing}
+              className={cn(
+                "py-2 px-4 border-2 border-[#ff6b6b] rounded-sm uppercase text-sm text-[#ff6b6b] flex items-center justify-center gap-2",
+                isProcessing
+                  ? "bg-[#0b3d0b]/50 opacity-50 cursor-not-allowed"
+                  : "bg-[#ff6b6b]/20 hover:bg-[#ff6b6b]/30",
+              )}
             >
+              {isProcessing && <Loader2 className="w-4 h-4 animate-spin" />}
               Delete
             </button>
           </div>

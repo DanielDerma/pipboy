@@ -1,72 +1,18 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Check, Clock, AlertTriangle, Edit, Trash2, Plus, Calendar, AlertCircle } from "lucide-react"
+import { Check, Clock, AlertTriangle, Edit, Trash2, Plus, Calendar, AlertCircle, Loader2 } from "lucide-react"
 import { XPIndicator } from "@/components/xp-indicator"
 import { RetroModal } from "@/components/retro-modal"
 import { RetroFormField } from "@/components/retro-form-field"
 import { cn } from "@/lib/utils"
-
-type Priority = "low" | "medium" | "high"
-
-type Todo = {
-  id: number
-  name: string
-  completed: boolean
-  priority: Priority
-  dueDate?: string
-  xpValue: number
-  description?: string
-  animating?: boolean
-}
+import { todosDB, type Todo, type Priority } from "@/lib/db-service"
+import { notificationService } from "@/lib/notification-service"
 
 export function TodosTab() {
-  const [todos, setTodos] = useState<Todo[]>([
-    {
-      id: 1,
-      name: "Fix Water Purifier",
-      completed: false,
-      priority: "high",
-      dueDate: "Tomorrow",
-      xpValue: 30,
-      description: "Repair the broken water purifier",
-    },
-    {
-      id: 2,
-      name: "Organize Inventory",
-      completed: false,
-      priority: "medium",
-      dueDate: "In 3 days",
-      xpValue: 15,
-      description: "Sort and organize supplies",
-    },
-    {
-      id: 3,
-      name: "Map New Territory",
-      completed: false,
-      priority: "low",
-      xpValue: 10,
-      description: "Explore and map the surrounding area",
-    },
-    {
-      id: 4,
-      name: "Trade with Settlers",
-      completed: true,
-      priority: "medium",
-      dueDate: "Yesterday",
-      xpValue: 20,
-      description: "Exchange goods with nearby settlement",
-    },
-    {
-      id: 5,
-      name: "Repair Power Armor",
-      completed: false,
-      priority: "high",
-      dueDate: "Today",
-      xpValue: 25,
-      description: "Fix damaged power armor components",
-    },
-  ])
+  const [todos, setTodos] = useState<Todo[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const [xpGain, setXpGain] = useState({ amount: 0, show: false })
   const [currentXp, setCurrentXp] = useState(2750)
@@ -78,9 +24,16 @@ export function TodosTab() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [currentTodo, setCurrentTodo] = useState<Todo | null>(null)
+  const [isProcessing, setIsProcessing] = useState(false)
 
   // Form state
-  const [formData, setFormData] = useState<Omit<Todo, "id" | "completed" | "animating">>({
+  const [formData, setFormData] = useState<{
+    name: string
+    priority: Priority
+    dueDate: string
+    xpValue: number
+    description: string
+  }>({
     name: "",
     priority: "medium",
     dueDate: "",
@@ -91,34 +44,68 @@ export function TodosTab() {
   // Calculate XP percentage
   const xpPercentage = (currentXp / maxXp) * 100
 
-  const toggleTodo = (id: number) => {
-    setTodos(
-      todos.map((todo) => {
-        if (todo.id === id) {
-          // If completing the task
-          if (!todo.completed) {
-            // Show XP gain and update XP
-            setXpGain({ amount: todo.xpValue, show: true })
-            setCurrentXp((prev) => Math.min(prev + todo.xpValue, maxXp))
+  // Load todos from IndexedDB
+  useEffect(() => {
+    const loadTodos = async () => {
+      try {
+        setIsLoading(true)
+        const data = await todosDB.getAll()
+        setTodos(data)
+        setError(null)
+      } catch (err) {
+        console.error("Failed to load todos:", err)
+        setError("Failed to load todos. Please try again.")
+        notificationService.error("Failed to load todos")
+      } finally {
+        setIsLoading(false)
+      }
+    }
 
-            // Return with animation flag
-            return {
-              ...todo,
-              completed: true,
-              animating: true,
-            }
-          } else {
-            // If uncompleting the task
-            setCurrentXp((prev) => Math.max(prev - todo.xpValue, 0))
-            return {
-              ...todo,
-              completed: false,
+    loadTodos()
+  }, [])
+
+  const toggleTodo = async (todo: Todo) => {
+    try {
+      const now = Date.now()
+      const updatedTodo = {
+        ...todo,
+        completed: !todo.completed,
+        updatedAt: now,
+      }
+
+      // Update in IndexedDB
+      await todosDB.update(updatedTodo)
+
+      // Update local state
+      setTodos((prevTodos) =>
+        prevTodos.map((t) => {
+          if (t.id === todo.id) {
+            // If completing the task
+            if (!todo.completed) {
+              // Show XP gain and update XP
+              setXpGain({ amount: todo.xpValue, show: true })
+              setCurrentXp((prev) => Math.min(prev + todo.xpValue, maxXp))
+
+              // Return with animation flag
+              return {
+                ...updatedTodo,
+                animating: true,
+              }
+            } else {
+              // If uncompleting the task
+              setCurrentXp((prev) => Math.max(prev - todo.xpValue, 0))
+              return updatedTodo
             }
           }
-        }
-        return todo
-      }),
-    )
+          return t
+        }),
+      )
+
+      notificationService.success(todo.completed ? `Unmarked ${todo.name} as complete` : `Completed ${todo.name}`)
+    } catch (err) {
+      console.error("Failed to toggle todo:", err)
+      notificationService.error("Failed to update todo")
+    }
   }
 
   // Update XP bar width with animation
@@ -164,53 +151,88 @@ export function TodosTab() {
   }
 
   // Create new todo
-  const handleCreateTodo = () => {
-    const newId = todos.length > 0 ? Math.max(...todos.map((t) => t.id)) + 1 : 1
+  const handleCreateTodo = async () => {
+    try {
+      setIsProcessing(true)
 
-    const newTodo: Todo = {
-      id: newId,
-      name: formData.name,
-      completed: false,
-      priority: formData.priority,
-      dueDate: formData.dueDate || undefined,
-      xpValue: formData.xpValue,
-      description: formData.description,
+      // Create new todo in IndexedDB
+      const newTodo = await todosDB.add({
+        name: formData.name,
+        priority: formData.priority,
+        dueDate: formData.dueDate || undefined,
+        xpValue: formData.xpValue,
+        description: formData.description,
+      })
+
+      // Update local state
+      setTodos((prevTodos) => [...prevTodos, newTodo])
+
+      resetForm()
+      setIsCreateModalOpen(false)
+      notificationService.success("Todo created successfully")
+    } catch (err) {
+      console.error("Failed to create todo:", err)
+      notificationService.error("Failed to create todo")
+    } finally {
+      setIsProcessing(false)
     }
-
-    setTodos([...todos, newTodo])
-    resetForm()
-    setIsCreateModalOpen(false)
   }
 
   // Edit todo
-  const handleEditTodo = () => {
+  const handleEditTodo = async () => {
     if (!currentTodo) return
 
-    setTodos(
-      todos.map((todo) =>
-        todo.id === currentTodo.id
-          ? {
-              ...todo,
-              name: formData.name,
-              priority: formData.priority,
-              dueDate: formData.dueDate || undefined,
-              xpValue: formData.xpValue,
-              description: formData.description,
-            }
-          : todo,
-      ),
-    )
+    try {
+      setIsProcessing(true)
 
-    resetForm()
-    setIsEditModalOpen(false)
+      const updatedTodo: Todo = {
+        ...currentTodo,
+        name: formData.name,
+        priority: formData.priority,
+        dueDate: formData.dueDate || undefined,
+        xpValue: formData.xpValue,
+        description: formData.description,
+        updatedAt: Date.now(),
+      }
+
+      // Update in IndexedDB
+      await todosDB.update(updatedTodo)
+
+      // Update local state
+      setTodos((prevTodos) => prevTodos.map((todo) => (todo.id === currentTodo.id ? updatedTodo : todo)))
+
+      resetForm()
+      setIsEditModalOpen(false)
+      notificationService.success("Todo updated successfully")
+    } catch (err) {
+      console.error("Failed to update todo:", err)
+      notificationService.error("Failed to update todo")
+    } finally {
+      setIsProcessing(false)
+    }
   }
 
   // Delete todo
-  const handleDeleteTodo = () => {
+  const handleDeleteTodo = async () => {
     if (!currentTodo) return
 
-    setTodos(todos.filter((todo) => todo.id !== currentTodo.id))
-    setIsDeleteModalOpen(false)
+    try {
+      setIsProcessing(true)
+
+      // Delete from IndexedDB
+      await todosDB.delete(currentTodo.id)
+
+      // Update local state
+      setTodos((prevTodos) => prevTodos.filter((todo) => todo.id !== currentTodo.id))
+
+      setIsDeleteModalOpen(false)
+      notificationService.success("Todo deleted successfully")
+    } catch (err) {
+      console.error("Failed to delete todo:", err)
+      notificationService.error("Failed to delete todo")
+    } finally {
+      setIsProcessing(false)
+    }
   }
 
   // Open edit modal and populate form
@@ -302,7 +324,23 @@ export function TodosTab() {
         </div>
       </div>
 
-      {todos.length === 0 ? (
+      {isLoading ? (
+        <div className="flex flex-col items-center justify-center py-10 text-center border-2 border-[#00ff00]/50 bg-[#0b3d0b]/30 rounded-sm">
+          <Loader2 className="w-10 h-10 mb-2 text-[#00ff00]/70 animate-spin" />
+          <p>Loading to-dos...</p>
+        </div>
+      ) : error ? (
+        <div className="flex flex-col items-center justify-center py-10 text-center border-2 border-[#ff6b6b]/50 bg-[#0b3d0b]/30 rounded-sm">
+          <AlertCircle className="w-10 h-10 mb-2 text-[#ff6b6b]/70" />
+          <p>{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-4 py-2 px-4 border-2 border-[#00ff00] rounded-sm uppercase text-sm bg-[#00ff00]/20 hover:bg-[#00ff00]/30"
+          >
+            Retry
+          </button>
+        </div>
+      ) : todos.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-10 text-center border-2 border-[#00ff00]/50 bg-[#0b3d0b]/30 rounded-sm">
           <AlertCircle className="w-10 h-10 mb-2 text-[#00ff00]/70" />
           <p>No to-do tasks created yet.</p>
@@ -319,7 +357,7 @@ export function TodosTab() {
             >
               <div className="col-span-1">
                 <button
-                  onClick={() => toggleTodo(todo.id)}
+                  onClick={() => toggleTodo(todo)}
                   className={`w-6 h-6 border-2 ${
                     todo.completed ? "bg-[#00ff00] border-[#00ff00]" : "bg-transparent border-[#00ff00]"
                   } rounded-sm flex items-center justify-center`}
@@ -429,19 +467,21 @@ export function TodosTab() {
               type="button"
               onClick={() => setIsCreateModalOpen(false)}
               className="py-2 px-4 border-2 border-[#00ff00] rounded-sm uppercase text-sm"
+              disabled={isProcessing}
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={!formData.name}
+              disabled={!formData.name || isProcessing}
               className={cn(
-                "py-2 px-4 border-2 border-[#00ff00] rounded-sm uppercase text-sm",
-                formData.name
+                "py-2 px-4 border-2 border-[#00ff00] rounded-sm uppercase text-sm flex items-center justify-center gap-2",
+                formData.name && !isProcessing
                   ? "bg-[#00ff00]/20 hover:bg-[#00ff00]/30"
                   : "bg-[#0b3d0b]/50 opacity-50 cursor-not-allowed",
               )}
             >
+              {isProcessing && <Loader2 className="w-4 h-4 animate-spin" />}
               Create
             </button>
           </div>
@@ -512,19 +552,21 @@ export function TodosTab() {
               type="button"
               onClick={() => setIsEditModalOpen(false)}
               className="py-2 px-4 border-2 border-[#00ff00] rounded-sm uppercase text-sm"
+              disabled={isProcessing}
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={!formData.name}
+              disabled={!formData.name || isProcessing}
               className={cn(
-                "py-2 px-4 border-2 border-[#00ff00] rounded-sm uppercase text-sm",
-                formData.name
+                "py-2 px-4 border-2 border-[#00ff00] rounded-sm uppercase text-sm flex items-center justify-center gap-2",
+                formData.name && !isProcessing
                   ? "bg-[#00ff00]/20 hover:bg-[#00ff00]/30"
                   : "bg-[#0b3d0b]/50 opacity-50 cursor-not-allowed",
               )}
             >
+              {isProcessing && <Loader2 className="w-4 h-4 animate-spin" />}
               Save Changes
             </button>
           </div>
@@ -543,13 +585,21 @@ export function TodosTab() {
             <button
               onClick={() => setIsDeleteModalOpen(false)}
               className="py-2 px-4 border-2 border-[#00ff00] rounded-sm uppercase text-sm"
+              disabled={isProcessing}
             >
               Cancel
             </button>
             <button
               onClick={handleDeleteTodo}
-              className="py-2 px-4 border-2 border-[#ff6b6b] bg-[#ff6b6b]/20 hover:bg-[#ff6b6b]/30 rounded-sm uppercase text-sm text-[#ff6b6b]"
+              disabled={isProcessing}
+              className={cn(
+                "py-2 px-4 border-2 border-[#ff6b6b] rounded-sm uppercase text-sm text-[#ff6b6b] flex items-center justify-center gap-2",
+                isProcessing
+                  ? "bg-[#0b3d0b]/50 opacity-50 cursor-not-allowed"
+                  : "bg-[#ff6b6b]/20 hover:bg-[#ff6b6b]/30",
+              )}
             >
+              {isProcessing && <Loader2 className="w-4 h-4 animate-spin" />}
               Delete
             </button>
           </div>
