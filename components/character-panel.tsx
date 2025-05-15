@@ -36,7 +36,6 @@ export function CharacterPanel() {
     { id: "heart", name: "Stimpak", icon: Heart, equipped: false, slot: "consumable" },
   ]
 
-
   const skills = [
     { name: "Small Guns", value: 65 },
     { name: "Big Guns", value: 30 },
@@ -138,25 +137,25 @@ export function CharacterPanel() {
             </div>
           </RetroBox>
         </div>
-      </div>
-        {// Skills}
-      <div className="md:col-span-2">
-      <RetroBox>
-        <h2 className="text-xl uppercase glow-text mb-4">Skills</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {skills.map((skill) => (
-            <div key={skill.name} className="space-y-1">
-              <div className="flex justify-between">
-                <span>{skill.name}</span>
-                <span>{skill.value}%</span>
-              </div>
-              <PixelProgressBar value={skill.value} />
+
+        {/* Skills */}
+        <div className="md:col-span-2">
+          <RetroBox>
+            <h2 className="text-xl uppercase glow-text mb-4">Skills</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {skills.map((skill) => (
+                <div key={skill.name} className="space-y-1">
+                  <div className="flex justify-between">
+                    <span>{skill.name}</span>
+                    <span>{skill.value}%</span>
+                  </div>
+                  <PixelProgressBar value={skill.value} />
+                </div>
+              ))}
             </div>
-          ))}
+          </RetroBox>
         </div>
-      </RetroBox>
       </div>
-      </div>     
     </div>
   )
 }

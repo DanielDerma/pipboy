@@ -43,6 +43,8 @@ export function PipBoyLayout({ children, activeTab, setActiveTab }: PipBoyLayout
           return "LOADING STAT DATA"
         case "inventory":
           return "LOADING INVENTORY DATA"
+        case "store":
+          return "LOADING STORE DATA"
         default:
           return "LOADING DATA"
       }
