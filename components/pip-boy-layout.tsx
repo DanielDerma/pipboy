@@ -101,7 +101,7 @@ export function PipBoyLayout({ children, activeTab, setActiveTab }: PipBoyLayout
   }
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-[#0b3d0b] text-[#00ff00] font-mono sm:pb-8 md:pb-0 lg:pb-0">
+    <div className="relative h-screen w-screen overflow-hidden bg-[#0b3d0b] text-[#00ff00] font-mono sm:pb-32 md:pb-0 lg:pb-0">
       {/* Global screen effects */}
       <div className="horizontal-scanlines"></div>
       <div className="moving-scanline"></div>
