@@ -138,6 +138,7 @@ export function CharacterPanel() {
             </div>
           </RetroBox>
         </div>
+      </div>
         {// Skills}
       <div className="md:col-span-2">
       <RetroBox>
