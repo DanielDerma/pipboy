@@ -19,7 +19,17 @@ export function PipBoyLayout({ children, activeTab, setActiveTab }: PipBoyLayout
   const [loadingMessage, setLoadingMessage] = useState("")
   const [content, setContent] = useState<ReactNode>(children)
   const [isInitialLoad, setIsInitialLoad] = useState(true)
+  const [currentDate, setCurrentDate] = useState<string>("");
 
+  useEffect(() => {
+    // This will only run on the client side after the component mounts
+    const now = new Date();
+    setCurrentDate(now.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+    }));
+  }, []);
   // Handle initial CRT power-on effect
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -193,7 +203,8 @@ export function PipBoyLayout({ children, activeTab, setActiveTab }: PipBoyLayout
           <div className="glow-text">HP 120/120</div>
           <div className="glow-text">RAD 0</div>
           <div className="glow-text">
-            {new Date().toLocaleDateString()} | {new Date().toLocaleTimeString()}
+            {/* {new Date().toLocaleDateString()} | {new Date().toLocaleTimeString()} */}
+            {currentDate}
           </div>
         </footer>
       </div>
