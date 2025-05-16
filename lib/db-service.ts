@@ -8,6 +8,7 @@ const STORES = {
   DAILIES: "dailies",
   TODOS: "todos",
   SYNC_QUEUE: "syncQueue",
+  REWARDS: "rewards", // Add this line
 }
 
 // Task types
@@ -48,6 +49,12 @@ export interface SyncQueueItem {
   store: string
   data: any
   timestamp: number
+}
+
+// Add the Reward interface after the other interfaces
+export interface Reward extends BaseTask {
+  cost: number
+  redemptionCount: number
 }
 
 // Generate a unique ID (timestamp + random suffix)
@@ -118,6 +125,13 @@ export const initDatabase = (): Promise<IDBDatabase> => {
       if (!db.objectStoreNames.contains(STORES.SYNC_QUEUE)) {
         const syncQueueStore = db.createObjectStore(STORES.SYNC_QUEUE, { keyPath: "id", autoIncrement: true })
         syncQueueStore.createIndex("timestamp", "timestamp", { unique: false })
+      }
+
+      // Add to the initDatabase function in the request.onupgradeneeded event handler, after the other stores
+      if (!db.objectStoreNames.contains(STORES.REWARDS)) {
+        const rewardsStore = db.createObjectStore(STORES.REWARDS, { keyPath: "id" })
+        rewardsStore.createIndex("updatedAt", "updatedAt", { unique: false })
+        rewardsStore.createIndex("cost", "cost", { unique: false })
       }
     }
   })
@@ -508,6 +522,41 @@ class DatabaseService {
       return await this.delete(STORES.TODOS, id)
     },
   }
+
+  // Add the rewards methods to the DatabaseService class at the end, before the export
+  // Rewards specific methods
+  rewards = {
+    getAll: async (): Promise<Reward[]> => {
+      return await this.getAll<Reward>(STORES.REWARDS)
+    },
+
+    getById: async (id: number): Promise<Reward | null> => {
+      return await this.getById<Reward>(STORES.REWARDS, id)
+    },
+
+    add: async (reward: Omit<Reward, "id" | "createdAt" | "updatedAt">): Promise<Reward> => {
+      const now = Date.now()
+      const newReward: Reward = {
+        ...reward,
+        id: generateUniqueId(),
+        createdAt: now,
+        updatedAt: now,
+      }
+      return await this.add<Reward>(STORES.REWARDS, newReward)
+    },
+
+    update: async (reward: Reward): Promise<Reward> => {
+      const updatedReward = {
+        ...reward,
+        updatedAt: Date.now(),
+      }
+      return await this.update<Reward>(STORES.REWARDS, updatedReward)
+    },
+
+    delete: async (id: number): Promise<void> => {
+      return await this.delete(STORES.REWARDS, id)
+    },
+  }
 }
 
 // Create and export a single instance of the database service
@@ -516,3 +565,5 @@ export const dbService = new DatabaseService()
 export const habitsDB = dbService.habits
 export const dailiesDB = dbService.dailies
 export const todosDB = dbService.todos
+// Add to the exports at the bottom
+export const rewardsDB = dbService.rewards
