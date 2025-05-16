@@ -8,11 +8,22 @@ const STORES = {
   DAILIES: "dailies",
   TODOS: "todos",
   SYNC_QUEUE: "syncQueue",
-  REWARDS: "rewards", // Add this line
+  REWARDS: "rewards",
+  USER: "user",
 }
 
 // Task types
 export type Priority = "low" | "medium" | "high"
+
+// Add User interface
+export interface User {
+  id: number
+  level: number
+  xp: number
+  caps: number
+  createdAt: number
+  updatedAt: number
+}
 
 export interface BaseTask {
   id: number
@@ -132,6 +143,11 @@ export const initDatabase = (): Promise<IDBDatabase> => {
         const rewardsStore = db.createObjectStore(STORES.REWARDS, { keyPath: "id" })
         rewardsStore.createIndex("updatedAt", "updatedAt", { unique: false })
         rewardsStore.createIndex("cost", "cost", { unique: false })
+      }
+
+      if (!db.objectStoreNames.contains(STORES.USER)) {
+        const userStore = db.createObjectStore(STORES.USER, { keyPath: "id" })
+        userStore.createIndex("updatedAt", "updatedAt", { unique: false })
       }
     }
   })
@@ -557,6 +573,40 @@ class DatabaseService {
       return await this.delete(STORES.REWARDS, id)
     },
   }
+
+  // Add user methods
+  user = {
+    get: async (): Promise<User | null> => {
+      try {
+        const users = await this.getAll<User>(STORES.USER)
+        return users[0] || null // Return first user or null
+      } catch (error) {
+        console.error("Failed to get user:", error)
+        return null
+      }
+    },
+
+    initialize: async (): Promise<User> => {
+      const now = Date.now()
+      const newUser: User = {
+        id: 1, // Single user system
+        level: 1,
+        xp: 0,
+        caps: 0,
+        createdAt: now,
+        updatedAt: now,
+      }
+      return await this.add<User>(STORES.USER, newUser)
+    },
+
+    update: async (user: User): Promise<User> => {
+      const updatedUser = {
+        ...user,
+        updatedAt: Date.now(),
+      }
+      return await this.update<User>(STORES.USER, updatedUser)
+    },
+  }
 }
 
 // Create and export a single instance of the database service
@@ -565,5 +615,5 @@ export const dbService = new DatabaseService()
 export const habitsDB = dbService.habits
 export const dailiesDB = dbService.dailies
 export const todosDB = dbService.todos
-// Add to the exports at the bottom
 export const rewardsDB = dbService.rewards
+export const userDB = dbService.user
