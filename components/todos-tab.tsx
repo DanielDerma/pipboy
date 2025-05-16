@@ -8,6 +8,7 @@ import { RetroFormField } from "@/components/retro-form-field"
 import { cn } from "@/lib/utils"
 import { todosDB, type Todo, type Priority } from "@/lib/db-service"
 import { notificationService } from "@/lib/notification-service"
+import { userDB, type User } from "@/lib/db-service"
 
 export function TodosTab() {
   const [todos, setTodos] = useState<Todo[]>([])
@@ -15,8 +16,8 @@ export function TodosTab() {
   const [error, setError] = useState<string | null>(null)
 
   const [xpGain, setXpGain] = useState({ amount: 0, show: false })
-  const [currentXp, setCurrentXp] = useState(2750)
-  const [maxXp, setMaxXp] = useState(4000)
+  const [currentXp, setCurrentXp] = useState(0)
+  const [maxXp, setMaxXp] = useState(1000)
   const xpBarRef = useRef<HTMLDivElement>(null)
 
   // Modal states
@@ -64,6 +65,30 @@ export function TodosTab() {
     loadTodos()
   }, [])
 
+  // Load user data
+  useEffect(() => {
+    const loadUserData = async () => {
+      try {
+        const user = await userDB.get()
+        if (user) {
+          setCurrentXp(user.xp)
+          // Calculate max XP based on level (1000 XP per level)
+          setMaxXp(user.level * 1000)
+        } else {
+          // Initialize user if not exists
+          const newUser = await userDB.initialize()
+          setCurrentXp(newUser.xp)
+          setMaxXp(newUser.level * 1000)
+        }
+      } catch (err) {
+        console.error("Failed to load user data:", err)
+        notificationService.error("Failed to load user data")
+      }
+    }
+
+    loadUserData()
+  }, [])
+
   const toggleTodo = async (todo: Todo) => {
     try {
       const now = Date.now()
@@ -86,6 +111,14 @@ export function TodosTab() {
               setXpGain({ amount: todo.xpValue, show: true })
               setCurrentXp((prev) => Math.min(prev + todo.xpValue, maxXp))
 
+              // Update user XP in database
+              userDB.get().then((user) => {
+                if (user) {
+                  const newXp = Math.min(user.xp + todo.xpValue, maxXp)
+                  userDB.update({ ...user, xp: newXp })
+                }
+              })
+
               // Return with animation flag
               return {
                 ...updatedTodo,
@@ -94,6 +127,15 @@ export function TodosTab() {
             } else {
               // If uncompleting the task
               setCurrentXp((prev) => Math.max(prev - todo.xpValue, 0))
+              
+              // Update user XP in database
+              userDB.get().then((user) => {
+                if (user) {
+                  const newXp = Math.max(user.xp - todo.xpValue, 0)
+                  userDB.update({ ...user, xp: newXp })
+                }
+              })
+              
               return updatedTodo
             }
           }

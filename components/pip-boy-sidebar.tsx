@@ -1,10 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { PixelProgressBar } from "@/components/pixel-progress-bar"
 import { RetroBox } from "@/components/retro-box"
 import { cn } from "@/lib/utils"
 import { X } from "lucide-react"
+import { userDB } from "@/lib/db-service"
 
 interface PipBoySidebarProps {
   isCollapsed: boolean
@@ -15,13 +16,34 @@ interface PipBoySidebarProps {
 export function PipBoySidebar({ isCollapsed, toggleSidebar, isMobile = false }: PipBoySidebarProps) {
   // Player stats
   const [playerStats, setPlayerStats] = useState({
-    level: 15,
-    currentXP: 2750,
-    maxXP: 4000,
-    currentHP: 85,
-    maxHP: 120,
-    gold: 347,
+    level: 1,
+    currentXP: 0,
+    maxXP: 1000,
+    currentHP: 100,
+    maxHP: 100,
+    caps: 0,
   })
+
+  // Load user data from database
+  useEffect(() => {
+    const loadUserData = async () => {
+      try {
+        const user = await userDB.get()
+        if (user) {
+          setPlayerStats(prev => ({
+            ...prev,
+            level: user.level,
+            currentXP: user.xp,
+            caps: user.caps,
+          }))
+        }
+      } catch (error) {
+        console.error("Failed to load user data:", error)
+      }
+    }
+
+    loadUserData()
+  }, [])
 
   // Calculate XP percentage
   const xpPercentage = (playerStats.currentXP / playerStats.maxXP) * 100
@@ -69,7 +91,7 @@ export function PipBoySidebar({ isCollapsed, toggleSidebar, isMobile = false }: 
         <div className={cn("flex flex-col items-center", isCollapsed && !isMobile ? "hidden" : "")}>
           <div className="w-24 h-24 border-2 border-[#00ff00] rounded-full flex items-center justify-center mb-2 relative overflow-hidden">
             <div className="absolute inset-0 bg-[#0b3d0b]/80"></div>
-            <div className="text-4xl font-bold glow-text relative z-10">15</div>
+            <div className="text-4xl font-bold glow-text relative z-10">{playerStats.level}</div>
           </div>
           <div className="text-center glow-text text-lg">VAULT 101</div>
         </div>
@@ -77,7 +99,7 @@ export function PipBoySidebar({ isCollapsed, toggleSidebar, isMobile = false }: 
         {/* Level indicator (visible when collapsed) */}
         <div className={cn("flex flex-col items-center", isCollapsed && !isMobile ? "" : "hidden")}>
           <div className="w-8 h-8 border-2 border-[#00ff00] rounded-full flex items-center justify-center">
-            <div className="text-sm font-bold glow-text">15</div>
+            <div className="text-sm font-bold glow-text">{playerStats.level}</div>
           </div>
         </div>
 
@@ -115,8 +137,8 @@ export function PipBoySidebar({ isCollapsed, toggleSidebar, isMobile = false }: 
 
           <RetroBox>
             <div className="flex justify-between items-center">
-              <span className="text-sm glow-text">GOLD</span>
-              <span className="text-sm">{playerStats.gold}</span>
+              <span className="text-sm glow-text">CAPS</span>
+              <span className="text-sm">{playerStats.caps}</span>
             </div>
           </RetroBox>
 
@@ -167,11 +189,6 @@ export function PipBoySidebar({ isCollapsed, toggleSidebar, isMobile = false }: 
           {/* XP mini bar */}
           <div className="w-4 h-16 border-2 border-[#00ff00] bg-[#0b3d0b]/50 relative">
             <div className="absolute bottom-0 left-0 right-0 bg-[#00ff00]" style={{ height: `${xpPercentage}%` }}></div>
-          </div>
-
-          {/* HP mini bar */}
-          <div className="w-4 h-16 border-2 border-[#00ff00] bg-[#0b3d0b]/50 relative">
-            <div className="absolute bottom-0 left-0 right-0 bg-[#00ff00]" style={{ height: `${hpPercentage}%` }}></div>
           </div>
 
           {/* Gold indicator */}

@@ -8,6 +8,7 @@ import { RetroFormField } from "@/components/retro-form-field"
 import { cn } from "@/lib/utils"
 import { dailiesDB, type Daily } from "@/lib/db-service"
 import { notificationService } from "@/lib/notification-service"
+import { userDB, type User } from "@/lib/db-service"
 
 export function DailiesTab() {
   const [dailies, setDailies] = useState<Daily[]>([])
@@ -15,8 +16,8 @@ export function DailiesTab() {
   const [error, setError] = useState<string | null>(null)
 
   const [xpGain, setXpGain] = useState({ amount: 0, show: false })
-  const [currentXp, setCurrentXp] = useState(2750)
-  const [maxXp, setMaxXp] = useState(4000)
+  const [currentXp, setCurrentXp] = useState(0)
+  const [maxXp, setMaxXp] = useState(1000)
   const xpBarRef = useRef<HTMLDivElement>(null)
 
   // Modal states
@@ -62,6 +63,30 @@ export function DailiesTab() {
     loadDailies()
   }, [])
 
+  // Load user data
+  useEffect(() => {
+    const loadUserData = async () => {
+      try {
+        const user = await userDB.get()
+        if (user) {
+          setCurrentXp(user.xp)
+          // Calculate max XP based on level (1000 XP per level)
+          setMaxXp(user.level * 1000)
+        } else {
+          // Initialize user if not exists
+          const newUser = await userDB.initialize()
+          setCurrentXp(newUser.xp)
+          setMaxXp(newUser.level * 1000)
+        }
+      } catch (err) {
+        console.error("Failed to load user data:", err)
+        notificationService.error("Failed to load user data")
+      }
+    }
+
+    loadUserData()
+  }, [])
+
   const toggleDaily = async (daily: Daily) => {
     try {
       const now = Date.now()
@@ -86,6 +111,14 @@ export function DailiesTab() {
               setXpGain({ amount: daily.xpValue, show: true })
               setCurrentXp((prev) => Math.min(prev + daily.xpValue, maxXp))
 
+              // Update user XP in database
+              userDB.get().then((user) => {
+                if (user) {
+                  const newXp = Math.min(user.xp + daily.xpValue, maxXp)
+                  userDB.update({ ...user, xp: newXp })
+                }
+              })
+
               // Return with animation flag
               return {
                 ...updatedDaily,
@@ -94,6 +127,15 @@ export function DailiesTab() {
             } else {
               // If uncompleting the task
               setCurrentXp((prev) => Math.max(prev - daily.xpValue, 0))
+              
+              // Update user XP in database
+              userDB.get().then((user) => {
+                if (user) {
+                  const newXp = Math.max(user.xp - daily.xpValue, 0)
+                  userDB.update({ ...user, xp: newXp })
+                }
+              })
+              
               return updatedDaily
             }
           }

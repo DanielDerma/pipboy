@@ -21,6 +21,7 @@ export interface User {
   level: number
   xp: number
   caps: number
+  hp: number
   createdAt: number
   updatedAt: number
 }
@@ -593,6 +594,7 @@ class DatabaseService {
         level: 1,
         xp: 0,
         caps: 0,
+        hp: 100, // Start with 100 HP
         createdAt: now,
         updatedAt: now,
       }

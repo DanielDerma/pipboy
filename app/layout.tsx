@@ -26,7 +26,7 @@ export const metadata: Metadata = {
   themeColor: "#0b3d0b",
   viewport: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no",
   manifest: "/manifest.webmanifest",
-    generator: 'v0.dev'
+  generator: 'v0.dev'
 }
 
 export default function RootLayout({

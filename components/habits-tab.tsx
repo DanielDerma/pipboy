@@ -6,7 +6,7 @@ import { XPIndicator } from "@/components/xp-indicator"
 import { RetroModal } from "@/components/retro-modal"
 import { RetroFormField } from "@/components/retro-form-field"
 import { cn } from "@/lib/utils"
-import { habitsDB, type Habit } from "@/lib/db-service"
+import { habitsDB, userDB, type Habit } from "@/lib/db-service"
 import { notificationService } from "@/lib/notification-service"
 
 export function HabitsTab() {
@@ -15,31 +15,9 @@ export function HabitsTab() {
   const [error, setError] = useState<string | null>(null)
 
   const [xpGain, setXpGain] = useState({ amount: 0, show: false })
-  const [currentXp, setCurrentXp] = useState(2750)
-  const [maxXp, setMaxXp] = useState(4000)
+  const [currentXp, setCurrentXp] = useState(0)
+  const [maxXp, setMaxXp] = useState(1000)
   const xpBarRef = useRef<HTMLDivElement>(null)
-
-  // Modal states
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
-  const [currentHabit, setCurrentHabit] = useState<Habit | null>(null)
-  const [isProcessing, setIsProcessing] = useState(false)
-
-  // Form state
-  const [formData, setFormData] = useState<{
-    name: string
-    positive: boolean
-    negative: boolean
-    xpValue: number
-    description: string
-  }>({
-    name: "",
-    positive: true,
-    negative: false,
-    xpValue: 5,
-    description: "",
-  })
 
   // Calculate XP percentage
   const xpPercentage = (currentXp / maxXp) * 100
@@ -64,6 +42,30 @@ export function HabitsTab() {
     loadHabits()
   }, [])
 
+  // Load user data
+  useEffect(() => {
+    const loadUserData = async () => {
+      try {
+        const user = await userDB.get()
+        if (user) {
+          setCurrentXp(user.xp)
+          // Calculate max XP based on level (1000 XP per level)
+          setMaxXp(user.level * 1000)
+        } else {
+          // Initialize user if not exists
+          const newUser = await userDB.initialize()
+          setCurrentXp(newUser.xp)
+          setMaxXp(newUser.level * 1000)
+        }
+      } catch (err) {
+        console.error("Failed to load user data:", err)
+        notificationService.error("Failed to load user data")
+      }
+    }
+
+    loadUserData()
+  }, [])
+
   const incrementHabit = async (habit: Habit) => {
     try {
       const updatedHabit = {
@@ -82,6 +84,14 @@ export function HabitsTab() {
       // Show XP gain and update XP
       setXpGain({ amount: habit.xpValue, show: true })
       setCurrentXp((prev) => Math.min(prev + habit.xpValue, maxXp))
+
+      // Update user XP in database
+      userDB.get().then((user) => {
+        if (user) {
+          const newXp = Math.min(user.xp + habit.xpValue, maxXp)
+          userDB.update({ ...user, xp: newXp })
+        }
+      })
 
       notificationService.success(`Incremented ${habit.name}`)
     } catch (err) {
@@ -105,9 +115,17 @@ export function HabitsTab() {
         prevHabits.map((h) => (h.id === habit.id ? { ...h, count: h.count - 1, animating: true } : h)),
       )
 
-      // Reduce XP for negative habits
+      // Show XP loss and update XP
       setXpGain({ amount: -habit.xpValue, show: true })
       setCurrentXp((prev) => Math.max(prev - habit.xpValue, 0))
+
+      // Update user XP in database
+      userDB.get().then((user) => {
+        if (user) {
+          const newXp = Math.max(user.xp - habit.xpValue, 0)
+          userDB.update({ ...user, xp: newXp })
+        }
+      })
 
       notificationService.success(`Decremented ${habit.name}`)
     } catch (err) {
@@ -147,134 +165,12 @@ export function HabitsTab() {
     setXpGain({ amount: 0, show: false })
   }
 
-  // Create new habit
-  const handleCreateHabit = async () => {
-    try {
-      setIsProcessing(true)
-
-      // Create new habit in IndexedDB
-      const newHabit = await habitsDB.add({
-        name: formData.name,
-        positive: formData.positive,
-        negative: formData.negative,
-        xpValue: formData.xpValue,
-        description: formData.description,
-      })
-
-      // Update local state
-      setHabits((prevHabits) => [...prevHabits, newHabit])
-
-      resetForm()
-      setIsCreateModalOpen(false)
-      notificationService.success("Habit created successfully")
-    } catch (err) {
-      console.error("Failed to create habit:", err)
-      notificationService.error("Failed to create habit")
-    } finally {
-      setIsProcessing(false)
-    }
-  }
-
-  // Edit habit
-  const handleEditHabit = async () => {
-    if (!currentHabit) return
-
-    try {
-      setIsProcessing(true)
-
-      const updatedHabit: Habit = {
-        ...currentHabit,
-        name: formData.name,
-        positive: formData.positive,
-        negative: formData.negative,
-        xpValue: formData.xpValue,
-        description: formData.description,
-        updatedAt: Date.now(),
-      }
-
-      // Update in IndexedDB
-      await habitsDB.update(updatedHabit)
-
-      // Update local state
-      setHabits((prevHabits) => prevHabits.map((habit) => (habit.id === currentHabit.id ? updatedHabit : habit)))
-
-      resetForm()
-      setIsEditModalOpen(false)
-      notificationService.success("Habit updated successfully")
-    } catch (err) {
-      console.error("Failed to update habit:", err)
-      notificationService.error("Failed to update habit")
-    } finally {
-      setIsProcessing(false)
-    }
-  }
-
-  // Delete habit
-  const handleDeleteHabit = async () => {
-    if (!currentHabit) return
-
-    try {
-      setIsProcessing(true)
-
-      // Delete from IndexedDB
-      await habitsDB.delete(currentHabit.id)
-
-      // Update local state
-      setHabits((prevHabits) => prevHabits.filter((habit) => habit.id !== currentHabit.id))
-
-      setIsDeleteModalOpen(false)
-      notificationService.success("Habit deleted successfully")
-    } catch (err) {
-      console.error("Failed to delete habit:", err)
-      notificationService.error("Failed to delete habit")
-    } finally {
-      setIsProcessing(false)
-    }
-  }
-
-  // Open edit modal and populate form
-  const openEditModal = (habit: Habit) => {
-    setCurrentHabit(habit)
-    setFormData({
-      name: habit.name,
-      positive: habit.positive,
-      negative: habit.negative,
-      xpValue: habit.xpValue,
-      description: habit.description || "",
-    })
-    setIsEditModalOpen(true)
-  }
-
-  // Open delete confirmation modal
-  const openDeleteModal = (habit: Habit) => {
-    setCurrentHabit(habit)
-    setIsDeleteModalOpen(true)
-  }
-
-  // Reset form to default values
-  const resetForm = () => {
-    setFormData({
-      name: "",
-      positive: true,
-      negative: false,
-      xpValue: 5,
-      description: "",
-    })
-    setCurrentHabit(null)
-  }
-
-  // Open create modal
-  const openCreateModal = () => {
-    resetForm()
-    setIsCreateModalOpen(true)
-  }
-
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-xl uppercase glow-text">Habits</h2>
         <button
-          onClick={openCreateModal}
+          onClick={() => {}}
           className="py-1 px-3 border-2 border-[#00ff00] rounded-sm uppercase text-sm flex items-center gap-1 bg-[#00ff00]/20 hover:bg-[#00ff00]/30"
         >
           <Plus className="w-4 h-4" />
@@ -361,14 +257,14 @@ export function HabitsTab() {
                   </button>
                 )}
                 <button
-                  onClick={() => openEditModal(habit)}
+                  onClick={() => {}}
                   className="w-8 h-8 border-2 border-[#00ff00] rounded-sm flex items-center justify-center hover:bg-[#00ff00]/20"
                   title="Edit"
                 >
                   <Edit className="w-4 h-4 text-[#00ff00]" />
                 </button>
                 <button
-                  onClick={() => openDeleteModal(habit)}
+                  onClick={() => {}}
                   className="w-8 h-8 border-2 border-[#00ff00] rounded-sm flex items-center justify-center hover:bg-[#00ff00]/20"
                   title="Delete"
                 >
@@ -383,219 +279,6 @@ export function HabitsTab() {
       <div className="text-sm text-[#00ff00]/70 mt-4">
         Use + for good habits and - for bad habits to track your progress.
       </div>
-
-      {/* Create Habit Modal */}
-      <RetroModal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} title="Create New Habit">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault()
-            handleCreateHabit()
-          }}
-          className="space-y-4"
-        >
-          <RetroFormField
-            id="habit-name"
-            label="Habit Name"
-            value={formData.name}
-            onChange={(value) => setFormData({ ...formData, name: value })}
-            placeholder="Enter habit name"
-            required
-          />
-
-          <RetroFormField
-            id="habit-description"
-            label="Description"
-            type="textarea"
-            value={formData.description || ""}
-            onChange={(value) => setFormData({ ...formData, description: value })}
-            placeholder="Enter a description (optional)"
-          />
-
-          <RetroFormField
-            id="habit-xp"
-            label="XP Value"
-            type="number"
-            value={formData.xpValue}
-            onChange={(value) => setFormData({ ...formData, xpValue: value })}
-            min={1}
-            max={100}
-            required
-          />
-
-          <div className="space-y-2">
-            <p className="text-sm font-medium">Habit Type</p>
-            <div className="flex space-x-4">
-              <RetroFormField
-                id="habit-positive"
-                label=""
-                type="checkbox"
-                placeholder="Positive (+)"
-                value={formData.positive}
-                onChange={(value) => setFormData({ ...formData, positive: value })}
-              />
-
-              <RetroFormField
-                id="habit-negative"
-                label=""
-                type="checkbox"
-                placeholder="Negative (-)"
-                value={formData.negative}
-                onChange={(value) => setFormData({ ...formData, negative: value })}
-              />
-            </div>
-            {!formData.positive && !formData.negative && (
-              <p className="text-xs text-[#ff6b6b]">Select at least one habit type</p>
-            )}
-          </div>
-
-          <div className="flex justify-end space-x-3 pt-2">
-            <button
-              type="button"
-              onClick={() => setIsCreateModalOpen(false)}
-              className="py-2 px-4 border-2 border-[#00ff00] rounded-sm uppercase text-sm"
-              disabled={isProcessing}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={!formData.name || (!formData.positive && !formData.negative) || isProcessing}
-              className={cn(
-                "py-2 px-4 border-2 border-[#00ff00] rounded-sm uppercase text-sm flex items-center justify-center gap-2",
-                formData.name && (formData.positive || formData.negative) && !isProcessing
-                  ? "bg-[#00ff00]/20 hover:bg-[#00ff00]/30"
-                  : "bg-[#0b3d0b]/50 opacity-50 cursor-not-allowed",
-              )}
-            >
-              {isProcessing && <Loader2 className="w-4 h-4 animate-spin" />}
-              Create
-            </button>
-          </div>
-        </form>
-      </RetroModal>
-
-      {/* Edit Habit Modal */}
-      <RetroModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Edit Habit">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault()
-            handleEditHabit()
-          }}
-          className="space-y-4"
-        >
-          <RetroFormField
-            id="edit-habit-name"
-            label="Habit Name"
-            value={formData.name}
-            onChange={(value) => setFormData({ ...formData, name: value })}
-            placeholder="Enter habit name"
-            required
-          />
-
-          <RetroFormField
-            id="edit-habit-description"
-            label="Description"
-            type="textarea"
-            value={formData.description || ""}
-            onChange={(value) => setFormData({ ...formData, description: value })}
-            placeholder="Enter a description (optional)"
-          />
-
-          <RetroFormField
-            id="edit-habit-xp"
-            label="XP Value"
-            type="number"
-            value={formData.xpValue}
-            onChange={(value) => setFormData({ ...formData, xpValue: value })}
-            min={1}
-            max={100}
-            required
-          />
-
-          <div className="space-y-2">
-            <p className="text-sm font-medium">Habit Type</p>
-            <div className="flex space-x-4">
-              <RetroFormField
-                id="edit-habit-positive"
-                label=""
-                type="checkbox"
-                placeholder="Positive (+)"
-                value={formData.positive}
-                onChange={(value) => setFormData({ ...formData, positive: value })}
-              />
-
-              <RetroFormField
-                id="edit-habit-negative"
-                label=""
-                type="checkbox"
-                placeholder="Negative (-)"
-                value={formData.negative}
-                onChange={(value) => setFormData({ ...formData, negative: value })}
-              />
-            </div>
-            {!formData.positive && !formData.negative && (
-              <p className="text-xs text-[#ff6b6b]">Select at least one habit type</p>
-            )}
-          </div>
-
-          <div className="flex justify-end space-x-3 pt-2">
-            <button
-              type="button"
-              onClick={() => setIsEditModalOpen(false)}
-              className="py-2 px-4 border-2 border-[#00ff00] rounded-sm uppercase text-sm"
-              disabled={isProcessing}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={!formData.name || (!formData.positive && !formData.negative) || isProcessing}
-              className={cn(
-                "py-2 px-4 border-2 border-[#00ff00] rounded-sm uppercase text-sm flex items-center justify-center gap-2",
-                formData.name && (formData.positive || formData.negative) && !isProcessing
-                  ? "bg-[#00ff00]/20 hover:bg-[#00ff00]/30"
-                  : "bg-[#0b3d0b]/50 opacity-50 cursor-not-allowed",
-              )}
-            >
-              {isProcessing && <Loader2 className="w-4 h-4 animate-spin" />}
-              Save Changes
-            </button>
-          </div>
-        </form>
-      </RetroModal>
-
-      {/* Delete Confirmation Modal */}
-      <RetroModal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} title="Delete Habit">
-        <div className="space-y-4">
-          <p>
-            Are you sure you want to delete <span className="font-bold">{currentHabit?.name}</span>?
-          </p>
-          <p className="text-sm text-[#00ff00]/70">This action cannot be undone.</p>
-
-          <div className="flex justify-end space-x-3 pt-2">
-            <button
-              onClick={() => setIsDeleteModalOpen(false)}
-              className="py-2 px-4 border-2 border-[#00ff00] rounded-sm uppercase text-sm"
-              disabled={isProcessing}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleDeleteHabit}
-              disabled={isProcessing}
-              className={cn(
-                "py-2 px-4 border-2 border-[#ff6b6b] rounded-sm uppercase text-sm text-[#ff6b6b] flex items-center justify-center gap-2",
-                isProcessing
-                  ? "bg-[#0b3d0b]/50 opacity-50 cursor-not-allowed"
-                  : "bg-[#ff6b6b]/20 hover:bg-[#ff6b6b]/30",
-              )}
-            >
-              {isProcessing && <Loader2 className="w-4 h-4 animate-spin" />}
-              Delete
-            </button>
-          </div>
-        </div>
-      </RetroModal>
     </div>
   )
 }

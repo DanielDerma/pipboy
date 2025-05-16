@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils"
 import { PipBoySidebar } from "@/components/pip-boy-sidebar"
 import { LoadingScreen } from "@/components/loading-screen"
 import { Menu } from "lucide-react"
+import { userDB, type User } from "@/lib/db-service"
 
 interface PipBoyLayoutProps {
   children: ReactNode
@@ -19,7 +20,31 @@ export function PipBoyLayout({ children, activeTab, setActiveTab }: PipBoyLayout
   const [loadingMessage, setLoadingMessage] = useState("")
   const [content, setContent] = useState<ReactNode>(children)
   const [isInitialLoad, setIsInitialLoad] = useState(true)
-  const [currentDate, setCurrentDate] = useState<string>("");
+  const [currentDate, setCurrentDate] = useState<string>("")
+  const [hp, setHp] = useState({ current: 100, max: 100 })
+
+  // Load user data
+  useEffect(() => {
+    const loadUserData = async () => {
+      try {
+        const user = await userDB.get()
+        if (user) {
+          // Calculate HP based on level (base 100 + 50 per level)
+          const maxHp = 100 + (user.level - 1) * 50
+          setHp({ current: user.hp || maxHp, max: maxHp })
+        } else {
+          // Initialize user if not exists
+          const newUser = await userDB.initialize()
+          const maxHp = 100 + (newUser.level - 1) * 50
+          setHp({ current: newUser.hp || maxHp, max: maxHp })
+        }
+      } catch (err) {
+        console.error("Failed to load user data:", err)
+      }
+    }
+
+    loadUserData()
+  }, [])
 
   useEffect(() => {
     // This will only run on the client side after the component mounts
@@ -30,13 +55,6 @@ export function PipBoyLayout({ children, activeTab, setActiveTab }: PipBoyLayout
       day: 'numeric',
     }));
   }, []);
-  // Handle initial CRT power-on effect
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsInitialLoad(false)
-    }, 800)
-    return () => clearTimeout(timer)
-  }, [])
 
   // Handle tab changes with loading screen
   useEffect(() => {
@@ -111,7 +129,7 @@ export function PipBoyLayout({ children, activeTab, setActiveTab }: PipBoyLayout
   }
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-[#0b3d0b] text-[#00ff00] font-mono sm:pb-32 md:pb-0 lg:pb-0">
+    <div className="relative h-screen w-screen overflow-hidden bg-[#0b3d0b] text-[#00ff00] font-mono">
       {/* Global screen effects */}
       <div className="horizontal-scanlines"></div>
       <div className="moving-scanline"></div>
@@ -200,12 +218,9 @@ export function PipBoyLayout({ children, activeTab, setActiveTab }: PipBoyLayout
 
         {/* Bottom status bar */}
         <footer className="border-t-2 border-[#00ff00] p-2 flex justify-between items-center text-sm">
-          <div className="glow-text">HP 120/120</div>
+          <div className="glow-text">HP {hp.current}/{hp.max}</div>
           <div className="glow-text">RAD 0</div>
-          <div className="glow-text">
-            {/* {new Date().toLocaleDateString()} | {new Date().toLocaleTimeString()} */}
-            {currentDate}
-          </div>
+          <div className="glow-text">{currentDate}</div>
         </footer>
       </div>
     </div>
