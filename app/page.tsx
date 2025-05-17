@@ -11,6 +11,7 @@ import { OfflineIndicator } from "@/components/offline-indicator"
 import { StoreTab } from "@/components/store-tab"
 import { DatabaseInitializer } from "@/components/db-initializer"
 import { NotificationToast } from "@/components/notification-toast"
+import { UserProvider } from "@/lib/user-context"
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<"tasks" | "stats" | "inventory" | "store">("tasks")
@@ -39,7 +40,7 @@ export default function Home() {
   }
 
   return (
-    <>
+    <UserProvider>
       <DatabaseInitializer />
       <PipBoyLayout activeTab={activeTab} setActiveTab={setActiveTab}>
         {activeTab === "tasks" && (
@@ -60,6 +61,6 @@ export default function Home() {
       <PWAInstallPrompt />
       <OfflineIndicator />
       <NotificationToast />
-    </>
+    </UserProvider>
   )
 }

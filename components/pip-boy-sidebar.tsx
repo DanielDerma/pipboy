@@ -6,6 +6,7 @@ import { RetroBox } from "@/components/retro-box"
 import { cn } from "@/lib/utils"
 import { X } from "lucide-react"
 import { userDB } from "@/lib/db-service"
+import { useUser } from "@/hooks/useUser"
 
 interface PipBoySidebarProps {
   isCollapsed: boolean
@@ -14,6 +15,9 @@ interface PipBoySidebarProps {
 }
 
 export function PipBoySidebar({ isCollapsed, toggleSidebar, isMobile = false }: PipBoySidebarProps) {
+  const { user } = useUser()
+  console.log("User data:", user)
+  
   // Player stats
   const [playerStats, setPlayerStats] = useState({
     level: 1,
