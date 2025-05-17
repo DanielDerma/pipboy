@@ -7,8 +7,10 @@ import { rewardsDB, type Reward, userDB, type User } from "@/lib/db-service"
 import { notificationService } from "@/lib/notification-service"
 import { RewardForm } from "@/components/reward-form"
 import { RetroModal } from "@/components/retro-modal"
+import { useUser } from "@/hooks/useUser"
 
 export function RewardsList() {
+  const { updateUser } = useUser()
   const [rewards, setRewards] = useState<Reward[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -77,7 +79,7 @@ export function RewardsList() {
         // Then update the database
         await Promise.all([
           rewardsDB.update(updatedReward),
-          userDB.update(updatedUser)
+          updateUser(updatedUser)
         ])
 
         notificationService.success(`Redeemed: ${reward.name}!`)

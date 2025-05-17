@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { cn } from "@/lib/utils"
 import { ShoppingCart, Info, AlertCircle } from "lucide-react"
 import { userDB, type User } from "@/lib/db-service"
+import { useUser } from "@/hooks/useUser"
 
 type ItemCategory = "weapon" | "apparel" | "aid" | "misc" | "ammo"
 
@@ -18,6 +19,7 @@ interface StoreItem {
 }
 
 export function StoreInterface() {
+  const { updateUser } = useUser()
   const [activeCategory, setActiveCategory] = useState<ItemCategory>("weapon")
   const [user, setUser] = useState<User | null>(null)
   const [purchaseMessage, setPurchaseMessage] = useState<{ item: string; success: boolean } | null>(null)
@@ -268,7 +270,7 @@ export function StoreInterface() {
           caps: user.caps - item.price
         }
 
-        await userDB.update(updatedUser)
+        await updateUser(updatedUser)
         setUser(updatedUser)
         setPurchaseMessage({ item: item.name, success: true })
       } catch (err) {

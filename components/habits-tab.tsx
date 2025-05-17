@@ -8,8 +8,10 @@ import { RetroFormField } from "@/components/retro-form-field"
 import { cn } from "@/lib/utils"
 import { habitsDB, userDB, type Habit } from "@/lib/db-service"
 import { notificationService } from "@/lib/notification-service"
+import { useUser } from "@/hooks/useUser"
 
 export function HabitsTab() {
+  const { updateUser } = useUser()
   const [habits, setHabits] = useState<Habit[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -89,7 +91,7 @@ export function HabitsTab() {
       userDB.get().then((user) => {
         if (user) {
           const newXp = Math.min(user.xp + habit.xpValue, maxXp)
-          userDB.update({ ...user, xp: newXp })
+          updateUser({ ...user, xp: newXp })
         }
       })
 
@@ -123,7 +125,7 @@ export function HabitsTab() {
       userDB.get().then((user) => {
         if (user) {
           const newXp = Math.max(user.xp - habit.xpValue, 0)
-          userDB.update({ ...user, xp: newXp })
+          updateUser({ ...user, xp: newXp })
         }
       })
 

@@ -9,8 +9,10 @@ import { cn } from "@/lib/utils"
 import { dailiesDB, type Daily } from "@/lib/db-service"
 import { notificationService } from "@/lib/notification-service"
 import { userDB, type User } from "@/lib/db-service"
+import { useUser } from "@/hooks/useUser"
 
 export function DailiesTab() {
+  const { updateUser } = useUser()
   const [dailies, setDailies] = useState<Daily[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -115,7 +117,7 @@ export function DailiesTab() {
               userDB.get().then((user) => {
                 if (user) {
                   const newXp = Math.min(user.xp + daily.xpValue, maxXp)
-                  userDB.update({ ...user, xp: newXp })
+                  updateUser({ ...user, xp: newXp })
                 }
               })
 
@@ -132,7 +134,7 @@ export function DailiesTab() {
               userDB.get().then((user) => {
                 if (user) {
                   const newXp = Math.max(user.xp - daily.xpValue, 0)
-                  userDB.update({ ...user, xp: newXp })
+                  updateUser({ ...user, xp: newXp })
                 }
               })
               
