@@ -1,8 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { cn } from "@/lib/utils"
 import { ShoppingCart, Info, AlertCircle } from "lucide-react"
+import { userDB, type User } from "@/lib/db-service"
 
 type ItemCategory = "weapon" | "apparel" | "aid" | "misc" | "ammo"
 
@@ -18,9 +19,29 @@ interface StoreItem {
 
 export function StoreInterface() {
   const [activeCategory, setActiveCategory] = useState<ItemCategory>("weapon")
-  const [playerGold, setPlayerGold] = useState(347)
+  const [user, setUser] = useState<User | null>(null)
   const [purchaseMessage, setPurchaseMessage] = useState<{ item: string; success: boolean } | null>(null)
   const [selectedItem, setSelectedItem] = useState<StoreItem | null>(null)
+
+  // Load user data from database
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const userData = await userDB.get()
+        if (!userData) {
+          // Initialize user if not exists
+          const newUser = await userDB.initialize()
+          setUser(newUser)
+        } else {
+          setUser(userData)
+        }
+      } catch (err) {
+        console.error("Failed to load user data:", err)
+      }
+    }
+
+    loadUser()
+  }, [])
 
   const storeItems: StoreItem[] = [
     // Weapons
@@ -236,10 +257,24 @@ export function StoreInterface() {
 
   const filteredItems = storeItems.filter((item) => item.category === activeCategory)
 
-  const handlePurchase = (item: StoreItem) => {
-    if (playerGold >= item.price) {
-      setPlayerGold((prev) => prev - item.price)
-      setPurchaseMessage({ item: item.name, success: true })
+  const handlePurchase = async (item: StoreItem) => {
+    if (!user) return
+
+    if (user.caps >= item.price) {
+      try {
+        // Update user caps
+        const updatedUser = {
+          ...user,
+          caps: user.caps - item.price
+        }
+
+        await userDB.update(updatedUser)
+        setUser(updatedUser)
+        setPurchaseMessage({ item: item.name, success: true })
+      } catch (err) {
+        console.error("Failed to purchase item:", err)
+        setPurchaseMessage({ item: item.name, success: false })
+      }
     } else {
       setPurchaseMessage({ item: item.name, success: false })
     }
@@ -288,7 +323,7 @@ export function StoreInterface() {
     <div className="p-4 space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-xl uppercase glow-text">Wasteland Trading Post</h2>
-        <div className="text-lg glow-text">CAPS: {playerGold}</div>
+        <div className="text-lg glow-text">CAPS: {user?.caps || 0}</div>
       </div>
 
       {purchaseMessage && (
@@ -362,10 +397,10 @@ export function StoreInterface() {
 
                 <button
                   onClick={() => handlePurchase(item)}
-                  disabled={playerGold < item.price}
+                  disabled={!user || user.caps < item.price}
                   className={cn(
                     "py-1 px-3 border-2 border-[#00ff00] rounded-sm uppercase text-sm flex items-center gap-1",
-                    playerGold >= item.price
+                    user && user.caps >= item.price
                       ? "bg-[#00ff00]/20 hover:bg-[#00ff00]/30"
                       : "bg-[#0b3d0b]/50 opacity-50 cursor-not-allowed",
                   )}
@@ -431,10 +466,10 @@ export function StoreInterface() {
                   handlePurchase(selectedItem)
                   setSelectedItem(null)
                 }}
-                disabled={playerGold < selectedItem.price}
+                disabled={!user || user.caps < selectedItem.price}
                 className={cn(
                   "py-2 px-4 border-2 border-[#00ff00] rounded-sm uppercase text-sm flex items-center gap-2",
-                  playerGold >= selectedItem.price
+                  user && user.caps >= selectedItem.price
                     ? "bg-[#00ff00]/20 hover:bg-[#00ff00]/30"
                     : "bg-[#0b3d0b]/50 opacity-50 cursor-not-allowed",
                 )}

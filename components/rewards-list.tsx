@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { cn } from "@/lib/utils"
 import { Plus, Award, Loader2, AlertCircle, Trash2 } from "lucide-react"
-import { rewardsDB, type Reward } from "@/lib/db-service"
+import { rewardsDB, type Reward, userDB, type User } from "@/lib/db-service"
 import { notificationService } from "@/lib/notification-service"
 import { RewardForm } from "@/components/reward-form"
 import { RetroModal } from "@/components/retro-modal"
@@ -12,47 +12,73 @@ export function RewardsList() {
   const [rewards, setRewards] = useState<Reward[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [playerGold, setPlayerGold] = useState(347)
+  const [user, setUser] = useState<User | null>(null)
   const [selectedReward, setSelectedReward] = useState<Reward | null>(null)
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
 
-  // Load rewards from database
+  // Load rewards and user data from database
   useEffect(() => {
-    const loadRewards = async () => {
+    const loadData = async () => {
       try {
         setIsLoading(true)
-        const data = await rewardsDB.getAll()
-        setRewards(data)
+        const [rewardsData, userData] = await Promise.all([
+          rewardsDB.getAll(),
+          userDB.get()
+        ])
+        
+        if (!userData) {
+          // Initialize user if not exists
+          const newUser = await userDB.initialize()
+          setUser(newUser)
+        } else {
+          setUser(userData)
+        }
+        
+        setRewards(rewardsData)
         setError(null)
       } catch (err) {
-        console.error("Failed to load rewards:", err)
-        setError("Failed to load rewards. Please try again.")
-        notificationService.error("Failed to load rewards")
+        console.error("Failed to load data:", err)
+        setError("Failed to load data. Please try again.")
+        notificationService.error("Failed to load data")
       } finally {
         setIsLoading(false)
       }
     }
 
-    loadRewards()
+    loadData()
   }, [])
 
   const handleRedeemReward = async (reward: Reward) => {
-    if (playerGold >= reward.cost) {
+    if (!user) return
+    
+    if (user.caps >= reward.cost) {
       try {
-        // Update the reward in the database
+        // Disable the redeem button immediately to prevent double-clicks
         const updatedReward = {
           ...reward,
           redemptionCount: reward.redemptionCount + 1,
+          updatedAt: Date.now()
         }
 
-        await rewardsDB.update(updatedReward)
+        // Update user caps
+        const updatedUser = {
+          ...user,
+          caps: user.caps - reward.cost,
+          updatedAt: Date.now()
+        }
 
-        // Update local state
-        setPlayerGold((prev) => prev - reward.cost)
+        // Update local state first to prevent UI lag
+        setUser(updatedUser)
         setRewards((prev) => prev.map((r) => (r.id === reward.id ? updatedReward : r)))
         setSelectedReward(reward)
+
+        // Then update the database
+        await Promise.all([
+          rewardsDB.update(updatedReward),
+          userDB.update(updatedUser)
+        ])
 
         notificationService.success(`Redeemed: ${reward.name}!`)
 
@@ -62,6 +88,9 @@ export function RewardsList() {
         }, 2000)
       } catch (err) {
         console.error("Failed to redeem reward:", err)
+        // Revert local state on error
+        setUser(user)
+        setRewards((prev) => prev.map((r) => (r.id === reward.id ? reward : r)))
         notificationService.error("Failed to redeem reward")
       }
     } else {
@@ -93,15 +122,11 @@ export function RewardsList() {
     setIsDeleteModalOpen(true)
   }
 
-  const handleRewardAdded = (reward: Reward) => {
-    setRewards((prev) => [...prev, reward])
-  }
-
   return (
     <div className="p-4 space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-xl uppercase glow-text">Personal Rewards</h2>
-        <div className="text-lg glow-text">CAPS: {playerGold}</div>
+        <div className="text-lg glow-text">CAPS: {user?.caps || 0}</div>
       </div>
 
       <div className="space-y-1 text-sm mb-4">
@@ -111,7 +136,7 @@ export function RewardsList() {
 
       {selectedReward && (
         <div className="border-2 border-[#00ff00] bg-[#00ff00]/20 p-3 text-center mb-4 task-flash">
-          <span className="text-lg glow-text">Redeemed: {selectedReward.title || selectedReward.name}!</span>
+          <span className="text-lg glow-text">Redeemed: {selectedReward.name}!</span>
         </div>
       )}
 
@@ -167,10 +192,10 @@ export function RewardsList() {
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleRedeemReward(reward)}
-                      disabled={playerGold < reward.cost}
+                      disabled={!user || user.caps < reward.cost}
                       className={cn(
                         "py-1 px-3 border-2 border-[#00ff00] rounded-sm uppercase text-sm",
-                        playerGold >= reward.cost
+                        user && user.caps >= reward.cost
                           ? "bg-[#00ff00]/20 hover:bg-[#00ff00]/30"
                           : "bg-[#0b3d0b]/50 opacity-50 cursor-not-allowed",
                       )}
@@ -204,7 +229,7 @@ export function RewardsList() {
       </div>
 
       {/* Reward Form Modal */}
-      <RewardForm isOpen={isFormOpen} onClose={() => setIsFormOpen(false)} onRewardAdded={handleRewardAdded} />
+      <RewardForm isOpen={isFormOpen} onClose={() => setIsFormOpen(false)} />
 
       {/* Delete Confirmation Modal */}
       <RetroModal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} title="Delete Reward">

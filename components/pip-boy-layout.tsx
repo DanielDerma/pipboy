@@ -219,7 +219,7 @@ export function PipBoyLayout({ children, activeTab, setActiveTab }: PipBoyLayout
         {/* Bottom status bar */}
         <footer className="border-t-2 border-[#00ff00] p-2 flex justify-between items-center text-sm">
           <div className="glow-text">HP {hp.current}/{hp.max}</div>
-          <div className="glow-text">RAD 0</div>
+          {/* <div className="glow-text">RAD 0</div> */}
           <div className="glow-text">{currentDate}</div>
         </footer>
       </div>

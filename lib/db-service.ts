@@ -593,7 +593,7 @@ class DatabaseService {
         id: 1, // Single user system
         level: 1,
         xp: 0,
-        caps: 0,
+        caps: 500,
         hp: 100, // Start with 100 HP
         createdAt: now,
         updatedAt: now,

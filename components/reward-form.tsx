@@ -13,10 +13,9 @@ import { notificationService } from "@/lib/notification-service"
 interface RewardFormProps {
   isOpen: boolean
   onClose: () => void
-  onRewardAdded: (reward: Reward) => void
 }
 
-export function RewardForm({ isOpen, onClose, onRewardAdded }: RewardFormProps) {
+export function RewardForm({ isOpen, onClose }: RewardFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState<{
     name: string
@@ -83,8 +82,6 @@ export function RewardForm({ isOpen, onClose, onRewardAdded }: RewardFormProps) 
         xpValue: 0,
       })
 
-      // Close modal and notify parent
-      onRewardAdded(newReward)
       onClose()
     } catch (error) {
       console.error("Failed to create reward:", error)
