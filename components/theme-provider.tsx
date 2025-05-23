@@ -7,5 +7,5 @@ import {
 } from 'next-themes'
 
 export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
-  return <NextThemesProvider {...props}>{children}</NextThemesProvider>
+  return <NextThemesProvider themes={['pipboy', 'modern']} defaultTheme='pipboy' enableSystem={false} {...props}>{children}</NextThemesProvider>
 }

@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { PixelProgressBar } from "@/components/pixel-progress-bar"
 import { RetroBox } from "@/components/retro-box"
+import { ThemeSwitcher } from "@/components/theme-switcher"
 import { cn } from "@/lib/utils"
 import { X } from "lucide-react"
 
@@ -119,6 +120,9 @@ export function PipBoySidebar({ isCollapsed, toggleSidebar, isMobile = false }: 
               <span className="text-sm">{playerStats.gold}</span>
             </div>
           </RetroBox>
+
+          {/* Theme Switcher */}
+          <ThemeSwitcher />
 
           {/* Mobile-only quick stats */}
           {isMobile && (
