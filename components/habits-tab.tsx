@@ -6,27 +6,36 @@ import { XPIndicator } from "@/components/xp-indicator"
 import { RetroModal } from "@/components/retro-modal"
 import { RetroFormField } from "@/components/retro-form-field"
 import { cn } from "@/lib/utils"
-import { habitsDB, type Habit } from "@/lib/db-service"
-import { notificationService } from "@/lib/notification-service"
+import { type Habit } from "@/lib/db-service" // Removed habitsDB and notificationService as they are handled by hooks
+import { useHabits } from "@/hooks/use-habits"
+import { useXP } from "@/hooks/use-xp"
 
 export function HabitsTab() {
-  const [habits, setHabits] = useState<Habit[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  // Integrate useHabits hook
+  const {
+    habits,
+    isLoading,
+    error,
+    addHabit,
+    updateHabit,
+    deleteHabit,
+    incrementHabitCounter,
+    decrementHabitCounter,
+  } = useHabits()
 
-  const [xpGain, setXpGain] = useState({ amount: 0, show: false })
-  const [currentXp, setCurrentXp] = useState(2750)
-  const [maxXp, setMaxXp] = useState(4000)
+  // Integrate useXP hook
+  const { currentXp, maxXp, xpGain, xpPercentage, gainXP, loseXP, handleXpAnimationComplete } = useXP() // Default initialXp and maxXp from useXP will be used
+
   const xpBarRef = useRef<HTMLDivElement>(null)
 
-  // Modal states
+  // Modal states - remain in HabitsTab
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [currentHabit, setCurrentHabit] = useState<Habit | null>(null)
-  const [isProcessing, setIsProcessing] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false) // For modal form submissions
 
-  // Form state
+  // Form state - remains in HabitsTab
   const [formData, setFormData] = useState<{
     name: string
     positive: boolean
@@ -41,82 +50,25 @@ export function HabitsTab() {
     description: "",
   })
 
-  // Calculate XP percentage
-  const xpPercentage = (currentXp / maxXp) * 100
+  // Removed local useEffect for loading habits (handled by useHabits)
+  // Removed local useEffect for resetting animation (handled by useHabits)
+  // Removed local handleXpAnimationComplete (handled by useXP)
 
-  // Load habits from IndexedDB
-  useEffect(() => {
-    const loadHabits = async () => {
-      try {
-        setIsLoading(true)
-        const data = await habitsDB.getAll()
-        setHabits(data)
-        setError(null)
-      } catch (err) {
-        console.error("Failed to load habits:", err)
-        setError("Failed to load habits. Please try again.")
-        notificationService.error("Failed to load habits")
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    loadHabits()
-  }, [])
-
-  const incrementHabit = async (habit: Habit) => {
-    try {
-      const updatedHabit = {
-        ...habit,
-        count: habit.count + 1,
-      }
-
-      // Update in IndexedDB
-      await habitsDB.update(updatedHabit)
-
-      // Update local state
-      setHabits((prevHabits) =>
-        prevHabits.map((h) => (h.id === habit.id ? { ...h, count: h.count + 1, animating: true } : h)),
-      )
-
-      // Show XP gain and update XP
-      setXpGain({ amount: habit.xpValue, show: true })
-      setCurrentXp((prev) => Math.min(prev + habit.xpValue, maxXp))
-
-      notificationService.success(`Incremented ${habit.name}`)
-    } catch (err) {
-      console.error("Failed to increment habit:", err)
-      notificationService.error("Failed to update habit")
+  const handleIncrementHabit = async (habit: Habit) => {
+    const updatedHabit = await incrementHabitCounter(habit)
+    if (updatedHabit) {
+      gainXP(habit.xpValue)
     }
   }
 
-  const decrementHabit = async (habit: Habit) => {
-    try {
-      const updatedHabit = {
-        ...habit,
-        count: habit.count - 1,
-      }
-
-      // Update in IndexedDB
-      await habitsDB.update(updatedHabit)
-
-      // Update local state
-      setHabits((prevHabits) =>
-        prevHabits.map((h) => (h.id === habit.id ? { ...h, count: h.count - 1, animating: true } : h)),
-      )
-
-      // Reduce XP for negative habits
-      setXpGain({ amount: -habit.xpValue, show: true })
-      setCurrentXp((prev) => Math.max(prev - habit.xpValue, 0))
-
-      notificationService.success(`Decremented ${habit.name}`)
-    } catch (err) {
-      console.error("Failed to decrement habit:", err)
-      notificationService.error("Failed to update habit")
+  const handleDecrementHabit = async (habit: Habit) => {
+    const updatedHabit = await decrementHabitCounter(habit)
+    if (updatedHabit) {
+      loseXP(habit.xpValue)
     }
   }
 
-  // Update XP bar width with animation
+  // Update XP bar width with animation - remains, but uses xpPercentage from useXP
   useEffect(() => {
     if (xpBarRef.current) {
       const initialWidth = xpBarRef.current.style.width
@@ -125,114 +77,74 @@ export function HabitsTab() {
     }
   }, [xpPercentage])
 
-  // Reset animation flags after animation completes
-  useEffect(() => {
-    const animatingHabits = habits.filter((habit) => habit.animating)
-    if (animatingHabits.length > 0) {
-      const timer = setTimeout(() => {
-        setHabits(
-          habits.map((habit) => {
-            if (habit.animating) {
-              return { ...habit, animating: false }
-            }
-            return habit
-          }),
-        )
-      }, 1500) // Match the animation duration
-      return () => clearTimeout(timer)
-    }
-  }, [habits])
-
-  const handleXpAnimationComplete = () => {
-    setXpGain({ amount: 0, show: false })
-  }
-
-  // Create new habit
+  // Create new habit - uses addHabit from useHabits
   const handleCreateHabit = async () => {
+    setIsProcessing(true)
     try {
-      setIsProcessing(true)
-
-      // Create new habit in IndexedDB
-      const newHabit = await habitsDB.add({
+      const newHabitData = {
         name: formData.name,
         positive: formData.positive,
         negative: formData.negative,
-        xpValue: formData.xpValue,
+        xpValue: Number(formData.xpValue), // Ensure xpValue is a number
         description: formData.description,
-      })
-
-      // Update local state
-      setHabits((prevHabits) => [...prevHabits, newHabit])
-
-      resetForm()
-      setIsCreateModalOpen(false)
-      notificationService.success("Habit created successfully")
+      }
+      const newHabit = await addHabit(newHabitData)
+      if (newHabit) {
+        resetForm()
+        setIsCreateModalOpen(false)
+      }
     } catch (err) {
-      console.error("Failed to create habit:", err)
-      notificationService.error("Failed to create habit")
+      // Error is handled by addHabit in the hook, which calls notificationService
+      console.error("Error in component handleCreateHabit:", err)
     } finally {
       setIsProcessing(false)
     }
   }
 
-  // Edit habit
+  // Edit habit - uses updateHabit from useHabits
   const handleEditHabit = async () => {
     if (!currentHabit) return
-
+    setIsProcessing(true)
     try {
-      setIsProcessing(true)
-
       const updatedHabit: Habit = {
         ...currentHabit,
         name: formData.name,
         positive: formData.positive,
         negative: formData.negative,
-        xpValue: formData.xpValue,
+        xpValue: Number(formData.xpValue), // Ensure xpValue is a number
         description: formData.description,
-        updatedAt: Date.now(),
+        // updatedAt is handled by the hook/dbService
       }
-
-      // Update in IndexedDB
-      await habitsDB.update(updatedHabit)
-
-      // Update local state
-      setHabits((prevHabits) => prevHabits.map((habit) => (habit.id === currentHabit.id ? updatedHabit : habit)))
-
-      resetForm()
-      setIsEditModalOpen(false)
-      notificationService.success("Habit updated successfully")
+      const updatedHabit = await updateHabit(updatedHabitData)
+      if (updatedHabit) {
+        resetForm()
+        setIsEditModalOpen(false)
+      }
     } catch (err) {
-      console.error("Failed to update habit:", err)
-      notificationService.error("Failed to update habit")
+      // Error is handled by updateHabit in the hook
+      console.error("Error in component handleEditHabit:", err)
     } finally {
       setIsProcessing(false)
     }
   }
 
-  // Delete habit
+  // Delete habit - uses deleteHabit from useHabits
   const handleDeleteHabit = async () => {
     if (!currentHabit) return
-
+    setIsProcessing(true)
     try {
-      setIsProcessing(true)
-
-      // Delete from IndexedDB
-      await habitsDB.delete(currentHabit.id)
-
-      // Update local state
-      setHabits((prevHabits) => prevHabits.filter((habit) => habit.id !== currentHabit.id))
-
+      await deleteHabit(currentHabit.id)
       setIsDeleteModalOpen(false)
-      notificationService.success("Habit deleted successfully")
+      // currentHabit will be reset by resetForm if needed, or when opening next modal
     } catch (err) {
-      console.error("Failed to delete habit:", err)
-      notificationService.error("Failed to delete habit")
+      // Error is handled by deleteHabit in the hook
+      console.error("Error in component handleDeleteHabit:", err)
     } finally {
       setIsProcessing(false)
     }
   }
 
-  // Open edit modal and populate form
+  // Open edit modal and populate form - remains in HabitsTab
   const openEditModal = (habit: Habit) => {
     setCurrentHabit(habit)
     setFormData({
@@ -245,13 +157,13 @@ export function HabitsTab() {
     setIsEditModalOpen(true)
   }
 
-  // Open delete confirmation modal
+  // Open delete confirmation modal - remains in HabitsTab
   const openDeleteModal = (habit: Habit) => {
     setCurrentHabit(habit)
     setIsDeleteModalOpen(true)
   }
 
-  // Reset form to default values
+  // Reset form to default values - remains in HabitsTab
   const resetForm = () => {
     setFormData({
       name: "",
@@ -260,10 +172,10 @@ export function HabitsTab() {
       xpValue: 5,
       description: "",
     })
-    setCurrentHabit(null)
+    setCurrentHabit(null) // Reset currentHabit as well
   }
 
-  // Open create modal
+  // Open create modal - remains in HabitsTab
   const openCreateModal = () => {
     resetForm()
     setIsCreateModalOpen(true)
@@ -353,7 +265,7 @@ export function HabitsTab() {
                 )}
                 {habit.negative && (
                   <button
-                    onClick={() => decrementHabit(habit)}
+            onClick={() => handleIncrementHabit(habit)}
                     className="w-8 h-8 border-2 border-[#00ff00] rounded-sm flex items-center justify-center hover:bg-[#00ff00]/20"
                     title="Decrement"
                   >
