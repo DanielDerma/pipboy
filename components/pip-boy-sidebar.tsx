@@ -16,42 +16,10 @@ interface PipBoySidebarProps {
 
 export function PipBoySidebar({ isCollapsed, toggleSidebar, isMobile = false }: PipBoySidebarProps) {
   const { user } = useUser()
-  console.log("User data:", user)
-  
-  // Player stats
-  const [playerStats, setPlayerStats] = useState({
-    level: 1,
-    currentXP: 0,
-    maxXP: 1000,
-    currentHP: 100,
-    maxHP: 100,
-    caps: 0,
-  })
-
-  // Load user data from database
-  useEffect(() => {
-    const loadUserData = async () => {
-      try {
-        const user = await userDB.get()
-        if (user) {
-          setPlayerStats(prev => ({
-            ...prev,
-            level: user.level,
-            currentXP: user.xp,
-            caps: user.caps,
-          }))
-        }
-      } catch (error) {
-        console.error("Failed to load user data:", error)
-      }
-    }
-
-    loadUserData()
-  }, [])
-
+  const { level: currentLevel, xp: currentXP, hp: currentHP, caps: currentCaps } = user || { level: 1, xp: 0, hp: 100, caps: 0 }
   // Calculate XP percentage
-  const xpPercentage = (playerStats.currentXP / playerStats.maxXP) * 100
-  const hpPercentage = (playerStats.currentHP / playerStats.maxHP) * 100
+  const xpPercentage = (currentXP / (currentLevel * 1000)) * 100
+  const hpPercentage = (currentHP / (100 + (currentLevel - 1) * 50)) * 100
 
   return (
     <div
@@ -95,7 +63,7 @@ export function PipBoySidebar({ isCollapsed, toggleSidebar, isMobile = false }: 
         <div className={cn("flex flex-col items-center", isCollapsed && !isMobile ? "hidden" : "")}>
           <div className="w-24 h-24 border-2 border-[#00ff00] rounded-full flex items-center justify-center mb-2 relative overflow-hidden">
             <div className="absolute inset-0 bg-[#0b3d0b]/80"></div>
-            <div className="text-4xl font-bold glow-text relative z-10">{playerStats.level}</div>
+            <div className="text-4xl font-bold glow-text relative z-10">{currentLevel}</div>
           </div>
           <div className="text-center glow-text text-lg">VAULT 101</div>
         </div>
@@ -103,7 +71,7 @@ export function PipBoySidebar({ isCollapsed, toggleSidebar, isMobile = false }: 
         {/* Level indicator (visible when collapsed) */}
         <div className={cn("flex flex-col items-center", isCollapsed && !isMobile ? "" : "hidden")}>
           <div className="w-8 h-8 border-2 border-[#00ff00] rounded-full flex items-center justify-center">
-            <div className="text-sm font-bold glow-text">{playerStats.level}</div>
+            <div className="text-sm font-bold glow-text">{currentLevel}</div>
           </div>
         </div>
 
@@ -113,13 +81,13 @@ export function PipBoySidebar({ isCollapsed, toggleSidebar, isMobile = false }: 
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-sm glow-text">LEVEL</span>
-                <span className="text-sm">{playerStats.level}</span>
+                <span className="text-sm">{currentLevel}</span>
               </div>
               <div className="space-y-1">
                 <div className="flex justify-between text-xs">
                   <span>XP</span>
                   <span>
-                    {playerStats.currentXP}/{playerStats.maxXP}
+                    {currentXP}/{currentLevel * 1000}
                   </span>
                 </div>
                 <PixelProgressBar value={xpPercentage} />
@@ -132,7 +100,7 @@ export function PipBoySidebar({ isCollapsed, toggleSidebar, isMobile = false }: 
               <div className="flex justify-between items-center">
                 <span className="text-sm glow-text">HEALTH</span>
                 <span className="text-sm">
-                  {playerStats.currentHP}/{playerStats.maxHP}
+                  {currentHP}/{100 + (currentLevel - 1) * 50}
                 </span>
               </div>
               <PixelProgressBar value={hpPercentage} />
@@ -142,7 +110,7 @@ export function PipBoySidebar({ isCollapsed, toggleSidebar, isMobile = false }: 
           <RetroBox>
             <div className="flex justify-between items-center">
               <span className="text-sm glow-text">CAPS</span>
-              <span className="text-sm">{playerStats.caps}</span>
+              <span className="text-sm">{currentCaps}</span>
             </div>
           </RetroBox>
 
