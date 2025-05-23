@@ -1,4 +1,5 @@
 // Service Worker for Pip-Boy PWA
+importScripts('/lib/db-service.js');
 
 const CACHE_NAME = "pip-boy-cache-v1"
 const OFFLINE_URL = "/offline.html"
@@ -79,6 +80,38 @@ self.addEventListener("fetch", (event) => {
     return
   }
 
+  // Network-first strategy for API requests
+  if (event.request.url.startsWith(self.location.origin + "/api/")) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          // If the network request is successful, cache and return the response
+          const responseClone = response.clone()
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseClone)
+          })
+          return response
+        })
+        .catch(() => {
+          // If the network request fails, try to serve from cache
+          return caches.match(event.request).then((cachedResponse) => {
+            if (cachedResponse) {
+              return cachedResponse
+            }
+            // If not in cache, return a generic error or custom offline JSON response
+            return new Response(
+              JSON.stringify({ error: "Offline and data not available in cache" }),
+              {
+                status: 503, // Service Unavailable
+                headers: { "Content-Type": "application/json" },
+              },
+            )
+          })
+        }),
+    )
+    return
+  }
+
   // For other assets, use cache-first strategy
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
@@ -119,45 +152,87 @@ self.addEventListener("sync", (event) => {
 
 // Function to sync pending tasks
 async function syncTasks() {
+  let allTasksSynced = true;
   try {
-    // Get all pending tasks from IndexedDB
-    const pendingTasks = await getPendingTasksFromDB()
+    // Get all pending tasks from dbService
+    const pendingTasks = await dbService.getSyncQueue();
+
+    if (!pendingTasks || pendingTasks.length === 0) {
+      console.log("No tasks to sync.");
+      // Notify clients that sync is complete (no tasks)
+      const clientsNoTasks = await self.clients.matchAll();
+      clientsNoTasks.forEach((client) => {
+        client.postMessage({
+          type: "SYNC_COMPLETED",
+          message: "No tasks to synchronize.",
+        });
+      });
+      return;
+    }
 
     // Send each pending task to the server
     for (const task of pendingTasks) {
-      await sendTaskToServer(task)
-      await markTaskAsSynced(task.id)
+      try {
+        const response = await sendTaskToServer(task);
+        if (!response.ok) {
+          console.error("Failed to send task to server:", task, "Response:", response.status);
+          allTasksSynced = false;
+          // Optionally, break here or collect failed tasks for selective removal
+        }
+      } catch (error) {
+        console.error("Error sending task:", task, error);
+        allTasksSynced = false;
+        // Optionally, break here or collect failed tasks
+      }
     }
 
-    // Notify clients that sync is complete
-    const clients = await self.clients.matchAll()
-    clients.forEach((client) => {
-      client.postMessage({
-        type: "SYNC_COMPLETED",
-        message: "All tasks have been synchronized",
-      })
-    })
+    if (allTasksSynced) {
+      await dbService.clearSyncQueue();
+      console.log("All tasks synchronized successfully and queue cleared.");
+      const clientsSuccess = await self.clients.matchAll();
+      clientsSuccess.forEach((client) => {
+        client.postMessage({
+          type: "SYNC_COMPLETED",
+          message: "All tasks have been synchronized successfully.",
+        });
+      });
+    } else {
+      console.log("Some tasks failed to sync. Queue not cleared.");
+      const clientsPartial = await self.clients.matchAll();
+      clientsPartial.forEach((client) => {
+        client.postMessage({
+          type: "SYNC_FAILED",
+          message: "Some tasks could not be synchronized. Will retry later.",
+        });
+      });
+    }
   } catch (error) {
-    console.error("Background sync failed:", error)
+    console.error("Background sync failed:", error);
+    allTasksSynced = false; // Ensure queue is not cleared on general error
+    const clientsError = await self.clients.matchAll();
+    clientsError.forEach((client) => {
+      client.postMessage({
+        type: "SYNC_ERROR",
+        message: "Background synchronization encountered an error.",
+      });
+    });
   }
 }
 
-// Placeholder functions for IndexedDB operations
-// These would be implemented with actual IndexedDB code
-function getPendingTasksFromDB() {
-  // This would fetch pending tasks from IndexedDB
-  return Promise.resolve([])
+// Updated sendTaskToServer function
+async function sendTaskToServer(syncQueueItem) {
+  // Simulate API call to /api/sync
+  return fetch("/api/sync", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(syncQueueItem),
+  });
 }
 
-function sendTaskToServer(task) {
-  // This would send the task to your server API
-  return Promise.resolve()
-}
-
-function markTaskAsSynced(taskId) {
-  // This would mark the task as synced in IndexedDB
-  return Promise.resolve()
-}
+// getPendingTasksFromDB and markTaskAsSynced are no longer needed as standalone functions here
+// as their logic is incorporated into syncTasks or handled by dbService.
 
 // Push notification event
 self.addEventListener("push", (event) => {
