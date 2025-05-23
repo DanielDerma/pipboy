@@ -2,9 +2,76 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
+.theme-pipboy {
   --pip-boy-bg: #0b3d0b;
   --pip-boy-text: #00ff00;
+
+  /* General variables for Tailwind/component compatibility */
+  --border: var(--pip-boy-text);
+  --input: var(--pip-boy-text); 
+  --ring: var(--pip-boy-text);
+
+  --background: var(--pip-boy-bg);
+  --foreground: var(--pip-boy-text);
+
+  --primary: var(--pip-boy-text);
+  --primary-foreground: var(--pip-boy-bg);
+
+  --secondary: var(--pip-boy-bg); 
+  --secondary-foreground: var(--pip-boy-text);
+
+  --destructive: #cc0000; /* Using a slightly darker red for destructive actions */
+  --destructive-foreground: #000000; 
+
+  --muted: var(--pip-boy-bg); 
+  --muted-foreground: var(--pip-boy-text); /* Consider var(--pip-boy-text) with lower opacity if needed, but direct mapping is fine */
+
+  --accent: var(--pip-boy-text); 
+  --accent-foreground: var(--pip-boy-bg);
+
+  --popover: var(--pip-boy-bg);
+  --popover-foreground: var(--pip-boy-text);
+
+  --card: var(--pip-boy-bg);
+  --card-foreground: var(--pip-boy-text);
+}
+
+.theme-modern {
+  --background: #FFFFFF; /* white */
+  --foreground: #111827; /* gray-900 */
+  --primary: #3B82F6;    /* blue-500 */
+  --primary-foreground: #FFFFFF; /* white */
+  --secondary: #F3F4F6;  /* gray-100 */
+  --secondary-foreground: #1F2937; /* gray-800 */
+  --muted: #F9FAFB;      /* gray-50 */
+  --muted-foreground: #6B7280; /* gray-500 */
+  --accent: #10B981;     /* emerald-500 */
+  --accent-foreground: #FFFFFF; /* white */
+  --border: #E5E7EB;     /* gray-200 */
+  --input: #D1D5DB;      /* gray-300 */
+  --ring: #3B82F6;       /* blue-500 */
+  --card: #FFFFFF;       /* white */
+  --card-foreground: #111827; /* gray-900 */
+}
+
+.theme-modern {
+  @media (prefers-color-scheme: dark) {
+    --background: #1F2937; /* gray-800 */
+    --foreground: #F9FAFB; /* gray-50 */
+    --primary: #60A5FA;    /* blue-400 */
+    --primary-foreground: #111827; /* gray-900 */
+    --secondary: #374151;  /* gray-700 */
+    --secondary-foreground: #F9FAFB; /* gray-50 */
+    --muted: #4B5563;      /* gray-600 */
+    --muted-foreground: #D1D5DB; /* gray-300 */
+    --accent: #34D399;     /* emerald-400 */
+    --accent-foreground: #111827; /* gray-900 */
+    --border: #4B5563;     /* gray-600 */
+    --input: #52525b;      /* zinc-600 */
+    --ring: #60A5FA;       /* blue-400 */
+    --card: #374151;       /* gray-700 */
+    --card-foreground: #F9FAFB; /* gray-50 */
+  }
 }
 
 @font-face {
@@ -15,9 +82,9 @@
 }
 
 body {
-  font-family: var(--font-vt323), "VT323", monospace;
-  background-color: var(--pip-boy-bg);
-  color: var(--pip-boy-text);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  background-color: var(--background, var(--pip-boy-bg)); /* Fallback to pip-boy-bg if --background is not defined */
+  color: var(--foreground, var(--pip-boy-text)); /* Fallback to pip-boy-text if --foreground is not defined */
   margin: 0;
   padding: 0;
   overflow: hidden;
@@ -25,15 +92,21 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+.theme-pipboy body {
+  font-family: var(--font-vt323), "VT323", monospace;
+  background-color: var(--pip-boy-bg);
+  color: var(--pip-boy-text);
+}
+
 /* Enhanced Scanlines effect */
-.bg-scanlines {
+.theme-pipboy .bg-scanlines {
   background: linear-gradient(to bottom, transparent 50%, rgba(0, 0, 0, 0.15) 50%);
   background-size: 100% 4px;
   pointer-events: none;
 }
 
 /* Horizontal scanlines across the whole screen */
-.horizontal-scanlines {
+.theme-pipboy .horizontal-scanlines {
   position: fixed;
   top: 0;
   left: 0;
@@ -51,7 +124,7 @@ body {
 }
 
 /* Moving scanline effect */
-.moving-scanline::before {
+.theme-pipboy .moving-scanline::before {
   content: "";
   position: fixed;
   top: 0;
@@ -75,17 +148,17 @@ body {
 }
 
 /* CRT glow effect */
-.crt-glow {
+.theme-pipboy .crt-glow {
   box-shadow: 0 0 10px 2px rgba(0, 255, 0, 0.2) inset;
 }
 
 /* Vignette effect */
-.vignette {
+.theme-pipboy .vignette {
   background: radial-gradient(circle, transparent 60%, rgba(0, 0, 0, 0.4) 100%);
 }
 
 /* Enhanced Glowing text effect with flicker */
-.glow-text {
+.theme-pipboy .glow-text {
   text-shadow: 0 0 8px rgba(0, 255, 0, 0.8);
   animation: text-flicker 30s infinite;
 }
@@ -168,7 +241,7 @@ body {
 }
 
 /* More intense flicker for emphasis */
-.intense-flicker {
+.theme-pipboy .intense-flicker {
   animation: intense-flicker 2s infinite;
 }
 
@@ -216,18 +289,18 @@ body {
 }
 
 /* Retro terminal effect */
-.retro-terminal {
+.theme-pipboy .retro-terminal {
   background-image: linear-gradient(rgba(0, 255, 0, 0.03) 50%, transparent 50%);
   background-size: 100% 4px;
 }
 
 /* Pixel progress bar */
-.pixel-progress {
+.theme-pipboy .pixel-progress {
   position: relative;
   box-shadow: 0 0 10px rgba(0, 255, 0, 0.7);
 }
 
-.pixel-overlay {
+.theme-pipboy .pixel-overlay {
   background-image: linear-gradient(
     90deg,
     transparent 0%,
@@ -325,14 +398,14 @@ body {
   }
 }
 
-.crt-on {
+.theme-pipboy .crt-on {
   animation: crt-on 0.8s ease-out forwards;
 }
 
 /* For Firefox */
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--pip-boy-text) var(--pip-boy-bg);
+  scrollbar-color: var(--foreground, var(--pip-boy-text)) var(--background, var(--pip-boy-bg));
 }
 
 /* For Chrome, Edge, and Safari */
@@ -341,13 +414,13 @@ body {
 }
 
 *::-webkit-scrollbar-track {
-  background: var(--pip-boy-bg);
+  background: var(--background, var(--pip-boy-bg));
 }
 
 *::-webkit-scrollbar-thumb {
-  background-color: var(--pip-boy-text);
+  background-color: var(--foreground, var(--pip-boy-text));
   border-radius: 0;
-  border: 1px solid var(--pip-boy-bg);
+  border: 1px solid var(--background, var(--pip-boy-bg));
 }
 
 /* Sidebar animation */
@@ -361,7 +434,7 @@ body {
   }
 }
 
-.pulse-glow {
+.theme-pipboy .pulse-glow {
   animation: pulse-glow 2s infinite;
 }
 
@@ -381,7 +454,7 @@ body {
   }
 }
 
-.task-flash {
+.theme-pipboy .task-flash {
   animation: task-flash 1s ease-out forwards;
 }
 
@@ -397,7 +470,7 @@ body {
   }
 }
 
-.task-fade {
+.theme-pipboy .task-fade {
   animation: task-fade 1.5s ease-out forwards;
 }
 
@@ -420,7 +493,7 @@ body {
   }
 }
 
-.xp-appear {
+.theme-pipboy .xp-appear {
   animation: xp-appear 2s ease-out forwards;
 }
 
@@ -439,7 +512,7 @@ body {
   }
 }
 
-.xp-fill {
+.theme-pipboy .xp-fill {
   animation: xp-fill 1s ease-out forwards;
 }
 
@@ -465,7 +538,7 @@ body {
   }
 }
 
-.terminal-flicker {
+.theme-pipboy .terminal-flicker {
   animation: terminal-flicker 0.5s ease-out;
 }
 
@@ -479,7 +552,7 @@ body {
   }
 }
 
-.scanline-animation::after {
+.theme-pipboy .scanline-animation::after {
   content: "";
   position: absolute;
   top: 0;
@@ -493,7 +566,7 @@ body {
 }
 
 /* Screen noise effect */
-.screen-noise {
+.theme-pipboy .screen-noise {
   position: fixed;
   top: 0;
   left: 0;
@@ -507,7 +580,7 @@ body {
 
 /* Mobile optimizations */
 @media (max-width: 640px) {
-  .glow-text {
+  .theme-pipboy .glow-text {
     text-shadow: 0 0 6px rgba(0, 255, 0, 0.7);
   }
 

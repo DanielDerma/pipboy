@@ -56,6 +56,7 @@ const config: Config = {
       },
       fontFamily: {
         mono: ["var(--font-vt323)", "VT323", "monospace"],
+        sans: ["system-ui", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "Noto Sans", "sans-serif", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"],
       },
       animation: {
         "terminal-blink": "blink 1s step-end infinite",
