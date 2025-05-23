@@ -7,12 +7,15 @@ import { rewardsDB, type Reward } from "@/lib/db-service"
 import { notificationService } from "@/lib/notification-service"
 import { RewardForm } from "@/components/reward-form"
 import { RetroModal } from "@/components/retro-modal"
+import useUser from "@/hooks/useUser" // Import useUser hook
 
 export function RewardsList() {
+  const { user, updateUserCaps, loadingUser, errorUser } = useUser() // Use the hook
+
   const [rewards, setRewards] = useState<Reward[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [playerGold, setPlayerGold] = useState(347)
+  // const [playerGold, setPlayerGold] = useState(347) // Remove internal state
   const [selectedReward, setSelectedReward] = useState<Reward | null>(null)
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
@@ -39,20 +42,25 @@ export function RewardsList() {
   }, [])
 
   const handleRedeemReward = async (reward: Reward) => {
-    if (playerGold >= reward.cost) {
+    if (!user) {
+      notificationService.error("User not loaded yet.")
+      return
+    }
+    if (user.caps >= reward.cost) {
       try {
         // Update the reward in the database
-        const updatedReward = {
+        const updatedRewardData = { // Renamed to avoid conflict with Reward type
           ...reward,
-          redemptionCount: reward.redemptionCount + 1,
+          // redemptionCount: reward.redemptionCount + 1, // This should be timesRedeemed
+          timesRedeemed: reward.timesRedeemed + 1,
         }
 
-        await rewardsDB.update(updatedReward)
+        await rewardsDB.update(updatedRewardData)
+        await updateUserCaps(user.caps - reward.cost) // Use hook to update caps
 
         // Update local state
-        setPlayerGold((prev) => prev - reward.cost)
-        setRewards((prev) => prev.map((r) => (r.id === reward.id ? updatedReward : r)))
-        setSelectedReward(reward)
+        setRewards((prev) => prev.map((r) => (r.id === reward.id ? updatedRewardData : r)))
+        setSelectedReward(reward) // Keep original reward for flash message to show name
 
         notificationService.success(`Redeemed: ${reward.name}!`)
 
@@ -97,11 +105,39 @@ export function RewardsList() {
     setRewards((prev) => [...prev, reward])
   }
 
+  // Handle user loading and error states
+  if (loadingUser) {
+    return (
+      <div className="p-4 space-y-6 flex flex-col items-center justify-center py-10 text-center">
+        <Loader2 data-testid="user-loader-icon" className="w-10 h-10 mb-2 text-[#00ff00]/70 animate-spin" />
+        <p>Loading user data...</p>
+      </div>
+    )
+  }
+
+  if (errorUser) {
+    return (
+      <div className="p-4 space-y-6 flex flex-col items-center justify-center py-10 text-center">
+        <AlertCircle data-testid="user-error-icon" className="w-10 h-10 mb-2 text-[#ff6b6b]/70" />
+        <p>Error loading user data. Please try again later.</p>
+      </div>
+    )
+  }
+  
+  if (!user) {
+    return (
+      <div className="p-4 space-y-6 flex flex-col items-center justify-center py-10 text-center">
+        <AlertCircle data-testid="no-user-icon" className="w-10 h-10 mb-2 text-[#ff6b6b]/70" />
+        <p>User data not available.</p>
+      </div>
+    )
+  }
+
   return (
     <div className="p-4 space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-xl uppercase glow-text">Personal Rewards</h2>
-        <div className="text-lg glow-text">CAPS: {playerGold}</div>
+        <div className="text-lg glow-text">CAPS: {user.caps}</div>
       </div>
 
       <div className="space-y-1 text-sm mb-4">
@@ -117,12 +153,12 @@ export function RewardsList() {
 
       {isLoading ? (
         <div className="flex flex-col items-center justify-center py-10 text-center border-2 border-[#00ff00]/50 bg-[#0b3d0b]/30 rounded-sm">
-          <Loader2 className="w-10 h-10 mb-2 text-[#00ff00]/70 animate-spin" />
+          <Loader2 data-testid="loader-icon" className="w-10 h-10 mb-2 text-[#00ff00]/70 animate-spin" />
           <p>Loading rewards...</p>
         </div>
       ) : error ? (
         <div className="flex flex-col items-center justify-center py-10 text-center border-2 border-[#ff6b6b]/50 bg-[#0b3d0b]/30 rounded-sm">
-          <AlertCircle className="w-10 h-10 mb-2 text-[#ff6b6b]/70" />
+          <AlertCircle data-testid="alert-circle-icon" className="w-10 h-10 mb-2 text-[#ff6b6b]/70" />
           <p>{error}</p>
           <button
             onClick={() => window.location.reload()}
@@ -133,7 +169,7 @@ export function RewardsList() {
         </div>
       ) : rewards.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-10 text-center border-2 border-[#00ff00]/50 bg-[#0b3d0b]/30 rounded-sm">
-          <Award className="w-10 h-10 mb-2 text-[#00ff00]/70" />
+          <Award data-testid="award-icon" className="w-10 h-10 mb-2 text-[#00ff00]/70" />
           <p>No rewards created yet.</p>
           <p className="text-sm text-[#00ff00]/70 mt-1">Create your first reward to start redeeming!</p>
         </div>
@@ -156,7 +192,7 @@ export function RewardsList() {
                 <div className="flex items-center gap-4 ml-7 md:ml-0">
                   <div className="text-sm">
                     <span className="opacity-70">Redeemed: </span>
-                    <span className="glow-text">{reward.redemptionCount}×</span>
+                    <span className="glow-text">{reward.timesRedeemed}×</span>
                   </div>
 
                   <div className="text-sm">
@@ -167,10 +203,10 @@ export function RewardsList() {
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleRedeemReward(reward)}
-                      disabled={playerGold < reward.cost}
+                      disabled={!user || user.caps < reward.cost}
                       className={cn(
                         "py-1 px-3 border-2 border-[#00ff00] rounded-sm uppercase text-sm",
-                        playerGold >= reward.cost
+                        user && user.caps >= reward.cost
                           ? "bg-[#00ff00]/20 hover:bg-[#00ff00]/30"
                           : "bg-[#0b3d0b]/50 opacity-50 cursor-not-allowed",
                       )}
