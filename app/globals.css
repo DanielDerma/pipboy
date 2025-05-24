@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-.theme-pipboy {
+html.pipboy {
   --pip-boy-bg: #0b3d0b;
   --pip-boy-text: #00ff00;
 
@@ -36,7 +36,7 @@
   --card-foreground: var(--pip-boy-text);
 }
 
-.theme-modern {
+html.modern {
   --background: #FFFFFF; /* white */
   --foreground: #111827; /* gray-900 */
   --primary: #3B82F6;    /* blue-500 */
@@ -54,7 +54,7 @@
   --card-foreground: #111827; /* gray-900 */
 }
 
-.theme-modern {
+html.modern {
   @media (prefers-color-scheme: dark) {
     --background: #1F2937; /* gray-800 */
     --foreground: #F9FAFB; /* gray-50 */
@@ -92,21 +92,27 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-.theme-pipboy body {
+html.pipboy body {
   font-family: var(--font-vt323), "VT323", monospace;
   background-color: var(--pip-boy-bg);
   color: var(--pip-boy-text);
 }
 
+html.modern body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
 /* Enhanced Scanlines effect */
-.theme-pipboy .bg-scanlines {
+html.pipboy .bg-scanlines {
   background: linear-gradient(to bottom, transparent 50%, rgba(0, 0, 0, 0.15) 50%);
   background-size: 100% 4px;
   pointer-events: none;
 }
 
 /* Horizontal scanlines across the whole screen */
-.theme-pipboy .horizontal-scanlines {
+html.pipboy .horizontal-scanlines {
   position: fixed;
   top: 0;
   left: 0;
@@ -124,7 +130,7 @@ body {
 }
 
 /* Moving scanline effect */
-.theme-pipboy .moving-scanline::before {
+html.pipboy .moving-scanline::before {
   content: "";
   position: fixed;
   top: 0;
@@ -148,17 +154,17 @@ body {
 }
 
 /* CRT glow effect */
-.theme-pipboy .crt-glow {
+html.pipboy .crt-glow {
   box-shadow: 0 0 10px 2px rgba(0, 255, 0, 0.2) inset;
 }
 
 /* Vignette effect */
-.theme-pipboy .vignette {
+html.pipboy .vignette {
   background: radial-gradient(circle, transparent 60%, rgba(0, 0, 0, 0.4) 100%);
 }
 
 /* Enhanced Glowing text effect with flicker */
-.theme-pipboy .glow-text {
+html.pipboy .glow-text {
   text-shadow: 0 0 8px rgba(0, 255, 0, 0.8);
   animation: text-flicker 30s infinite;
 }
@@ -241,7 +247,7 @@ body {
 }
 
 /* More intense flicker for emphasis */
-.theme-pipboy .intense-flicker {
+html.pipboy .intense-flicker {
   animation: intense-flicker 2s infinite;
 }
 
@@ -289,18 +295,18 @@ body {
 }
 
 /* Retro terminal effect */
-.theme-pipboy .retro-terminal {
+html.pipboy .retro-terminal {
   background-image: linear-gradient(rgba(0, 255, 0, 0.03) 50%, transparent 50%);
   background-size: 100% 4px;
 }
 
 /* Pixel progress bar */
-.theme-pipboy .pixel-progress {
+html.pipboy .pixel-progress {
   position: relative;
   box-shadow: 0 0 10px rgba(0, 255, 0, 0.7);
 }
 
-.theme-pipboy .pixel-overlay {
+html.pipboy .pixel-overlay {
   background-image: linear-gradient(
     90deg,
     transparent 0%,
@@ -398,7 +404,7 @@ body {
   }
 }
 
-.theme-pipboy .crt-on {
+html.pipboy .crt-on {
   animation: crt-on 0.8s ease-out forwards;
 }
 
@@ -434,7 +440,7 @@ body {
   }
 }
 
-.theme-pipboy .pulse-glow {
+html.pipboy .pulse-glow {
   animation: pulse-glow 2s infinite;
 }
 
@@ -454,7 +460,7 @@ body {
   }
 }
 
-.theme-pipboy .task-flash {
+html.pipboy .task-flash {
   animation: task-flash 1s ease-out forwards;
 }
 
@@ -470,7 +476,7 @@ body {
   }
 }
 
-.theme-pipboy .task-fade {
+html.pipboy .task-fade {
   animation: task-fade 1.5s ease-out forwards;
 }
 
@@ -493,7 +499,7 @@ body {
   }
 }
 
-.theme-pipboy .xp-appear {
+html.pipboy .xp-appear {
   animation: xp-appear 2s ease-out forwards;
 }
 
@@ -512,7 +518,7 @@ body {
   }
 }
 
-.theme-pipboy .xp-fill {
+html.pipboy .xp-fill {
   animation: xp-fill 1s ease-out forwards;
 }
 
@@ -538,7 +544,7 @@ body {
   }
 }
 
-.theme-pipboy .terminal-flicker {
+html.pipboy .terminal-flicker {
   animation: terminal-flicker 0.5s ease-out;
 }
 
@@ -552,7 +558,7 @@ body {
   }
 }
 
-.theme-pipboy .scanline-animation::after {
+html.pipboy .scanline-animation::after {
   content: "";
   position: absolute;
   top: 0;
@@ -566,7 +572,7 @@ body {
 }
 
 /* Screen noise effect */
-.theme-pipboy .screen-noise {
+html.pipboy .screen-noise {
   position: fixed;
   top: 0;
   left: 0;
@@ -580,7 +586,7 @@ body {
 
 /* Mobile optimizations */
 @media (max-width: 640px) {
-  .theme-pipboy .glow-text {
+  html.pipboy .glow-text {
     text-shadow: 0 0 6px rgba(0, 255, 0, 0.7);
   }
 
