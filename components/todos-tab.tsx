@@ -103,42 +103,38 @@ export function TodosTab() {
       // Update in IndexedDB
       await todosDB.update(updatedTodo)
 
+      // If completing the task, show XP gain
+      if (!todo.completed) {
+        setXpGain({ amount: todo.xpValue, show: true })
+        setCurrentXp((prev) => Math.min(prev + todo.xpValue, maxXp))
+
+        // Update user XP in database
+        userDB.get().then((user) => {
+          if (user) {
+            const newXp = Math.min(user.xp + todo.xpValue, maxXp)
+            updateUser({ ...user, xp: newXp })
+          }
+        })
+      } else {
+        // If uncompleting the task
+        setCurrentXp((prev) => Math.max(prev - todo.xpValue, 0))
+        
+        // Update user XP in database
+        userDB.get().then((user) => {
+          if (user) {
+            const newXp = Math.max(user.xp - todo.xpValue, 0)
+            updateUser({ ...user, xp: newXp })
+          }
+        })
+      }
+
       // Update local state
       setTodos((prevTodos) =>
         prevTodos.map((t) => {
           if (t.id === todo.id) {
-            // If completing the task
-            if (!todo.completed) {
-              // Show XP gain and update XP
-              setXpGain({ amount: todo.xpValue, show: true })
-              setCurrentXp((prev) => Math.min(prev + todo.xpValue, maxXp))
-
-              // Update user XP in database
-              userDB.get().then((user) => {
-                if (user) {
-                  const newXp = Math.min(user.xp + todo.xpValue, maxXp)
-                  updateUser({ ...user, xp: newXp })
-                }
-              })
-
-              // Return with animation flag
-              return {
-                ...updatedTodo,
-                animating: true,
-              }
-            } else {
-              // If uncompleting the task
-              setCurrentXp((prev) => Math.max(prev - todo.xpValue, 0))
-              
-              // Update user XP in database
-              userDB.get().then((user) => {
-                if (user) {
-                  const newXp = Math.max(user.xp - todo.xpValue, 0)
-                  updateUser({ ...user, xp: newXp })
-                }
-              })
-              
-              return updatedTodo
+            return {
+              ...updatedTodo,
+              animating: !todo.completed, // Only animate when completing
             }
           }
           return t

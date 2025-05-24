@@ -6,7 +6,7 @@ import { XPIndicator } from "@/components/xp-indicator"
 import { RetroModal } from "@/components/retro-modal"
 import { RetroFormField } from "@/components/retro-form-field"
 import { cn } from "@/lib/utils"
-import { dailiesDB, type Daily } from "@/lib/db-service"
+import { dailiesDB, type Daily, getDueDateTimestamp, formatDueDate } from "@/lib/db-service"
 import { notificationService } from "@/lib/notification-service"
 import { userDB, type User } from "@/lib/db-service"
 import { useUser } from "@/hooks/useUser"
@@ -35,11 +35,13 @@ export function DailiesTab() {
     dueDate: string
     xpValue: number
     description: string
+    customDate?: string
   }>({
     name: "",
     dueDate: "Today",
     xpValue: 10,
     description: "",
+    customDate: "",
   })
 
   // Calculate XP percentage
@@ -103,42 +105,38 @@ export function DailiesTab() {
       // Update in IndexedDB
       await dailiesDB.update(updatedDaily)
 
+      // If completing the task, show XP gain
+      if (!daily.completed) {
+        setXpGain({ amount: daily.xpValue, show: true })
+        setCurrentXp((prev) => Math.min(prev + daily.xpValue, maxXp))
+
+        // Update user XP in database
+        userDB.get().then((user) => {
+          if (user) {
+            const newXp = Math.min(user.xp + daily.xpValue, maxXp)
+            updateUser({ ...user, xp: newXp })
+          }
+        })
+      } else {
+        // If uncompleting the task
+        setCurrentXp((prev) => Math.max(prev - daily.xpValue, 0))
+        
+        // Update user XP in database
+        userDB.get().then((user) => {
+          if (user) {
+            const newXp = Math.max(user.xp - daily.xpValue, 0)
+            updateUser({ ...user, xp: newXp })
+          }
+        })
+      }
+
       // Update local state
       setDailies((prevDailies) =>
         prevDailies.map((d) => {
           if (d.id === daily.id) {
-            // If completing the task
-            if (!daily.completed) {
-              // Show XP gain and update XP
-              setXpGain({ amount: daily.xpValue, show: true })
-              setCurrentXp((prev) => Math.min(prev + daily.xpValue, maxXp))
-
-              // Update user XP in database
-              userDB.get().then((user) => {
-                if (user) {
-                  const newXp = Math.min(user.xp + daily.xpValue, maxXp)
-                  updateUser({ ...user, xp: newXp })
-                }
-              })
-
-              // Return with animation flag
-              return {
-                ...updatedDaily,
-                animating: true,
-              }
-            } else {
-              // If uncompleting the task
-              setCurrentXp((prev) => Math.max(prev - daily.xpValue, 0))
-              
-              // Update user XP in database
-              userDB.get().then((user) => {
-                if (user) {
-                  const newXp = Math.max(user.xp - daily.xpValue, 0)
-                  updateUser({ ...user, xp: newXp })
-                }
-              })
-              
-              return updatedDaily
+            return {
+              ...updatedDaily,
+              animating: !daily.completed, // Only animate when completing
             }
           }
           return d
@@ -188,10 +186,15 @@ export function DailiesTab() {
     try {
       setIsProcessing(true)
 
+      // Convert due date to timestamp
+      const dueDateTimestamp = formData.dueDate === "custom" 
+        ? new Date(formData.customDate!).getTime()
+        : getDueDateTimestamp(formData.dueDate)
+
       // Create new daily in IndexedDB
       const newDaily = await dailiesDB.add({
         name: formData.name,
-        dueDate: formData.dueDate,
+        dueDate: dueDateTimestamp,
         xpValue: formData.xpValue,
         description: formData.description,
       })
@@ -217,10 +220,15 @@ export function DailiesTab() {
     try {
       setIsProcessing(true)
 
+      // Convert due date to timestamp
+      const dueDateTimestamp = formData.dueDate === "custom" 
+        ? new Date(formData.customDate!).getTime()
+        : getDueDateTimestamp(formData.dueDate)
+
       const updatedDaily: Daily = {
         ...currentDaily,
         name: formData.name,
-        dueDate: formData.dueDate,
+        dueDate: dueDateTimestamp,
         xpValue: formData.xpValue,
         description: formData.description,
         updatedAt: Date.now(),
@@ -271,9 +279,10 @@ export function DailiesTab() {
     setCurrentDaily(daily)
     setFormData({
       name: daily.name,
-      dueDate: daily.dueDate,
+      dueDate: "custom",
       xpValue: daily.xpValue,
       description: daily.description || "",
+      customDate: new Date(daily.dueDate).toISOString().split('T')[0],
     })
     setIsEditModalOpen(true)
   }
@@ -309,6 +318,7 @@ export function DailiesTab() {
     { value: "In 3 days", label: "In 3 days" },
     { value: "This week", label: "This week" },
     { value: "Next week", label: "Next week" },
+    { value: "custom", label: "Custom date" },
   ]
 
   return (
@@ -374,7 +384,9 @@ export function DailiesTab() {
               key={daily.id}
               className={`grid grid-cols-12 items-center py-2 border-b border-[#00ff00]/30 hover:bg-[#00ff00]/10 relative ${
                 daily.animating ? "task-flash scanline-animation" : ""
-              } ${daily.completed && !daily.animating ? "task-fade" : ""}`}
+              } ${daily.completed && !daily.animating ? "task-fade" : ""} ${
+                !daily.completed && daily.dueDate < Date.now() ? "border-[#ff6b6b] bg-[#ff6b6b]/10" : ""
+              }`}
             >
               <div className="col-span-1">
                 <button
@@ -397,7 +409,7 @@ export function DailiesTab() {
               </div>
               <div className="col-span-2 text-right text-sm flex items-center justify-end">
                 <Calendar className="w-3 h-3 mr-1 opacity-70" />
-                {daily.dueDate}
+                {formatDueDate(daily.dueDate)}
               </div>
               <div className="col-span-2 flex justify-end space-x-1">
                 <button
@@ -461,15 +473,27 @@ export function DailiesTab() {
               required
             />
 
-            <RetroFormField
-              id="daily-due-date"
-              label="Due Date"
-              type="select"
-              value={formData.dueDate}
-              onChange={(value) => setFormData({ ...formData, dueDate: value })}
-              options={dueDateOptions}
-              required
-            />
+            <div className="space-y-2">
+              <RetroFormField
+                id="daily-due-date"
+                label="Due Date"
+                type="select"
+                value={formData.dueDate}
+                onChange={(value) => setFormData({ ...formData, dueDate: value })}
+                options={dueDateOptions}
+                required
+              />
+              {formData.dueDate === "custom" && (
+                <RetroFormField
+                  id="daily-custom-date"
+                  label="Custom Date"
+                  type="date"
+                  value={formData.customDate || ""}
+                  onChange={(value) => setFormData({ ...formData, customDate: value })}
+                  required
+                />
+              )}
+            </div>
           </div>
 
           <div className="flex justify-end space-x-3 pt-2">
@@ -537,15 +561,27 @@ export function DailiesTab() {
               required
             />
 
-            <RetroFormField
-              id="edit-daily-due-date"
-              label="Due Date"
-              type="select"
-              value={formData.dueDate}
-              onChange={(value) => setFormData({ ...formData, dueDate: value })}
-              options={dueDateOptions}
-              required
-            />
+            <div className="space-y-2">
+              <RetroFormField
+                id="edit-daily-due-date"
+                label="Due Date"
+                type="select"
+                value={formData.dueDate}
+                onChange={(value) => setFormData({ ...formData, dueDate: value })}
+                options={dueDateOptions}
+                required
+              />
+              {formData.dueDate === "custom" && (
+                <RetroFormField
+                  id="edit-daily-custom-date"
+                  label="Custom Date"
+                  type="date"
+                  value={formData.customDate || ""}
+                  onChange={(value) => setFormData({ ...formData, customDate: value })}
+                  required
+                />
+              )}
+            </div>
           </div>
 
           <div className="flex justify-end space-x-3 pt-2">

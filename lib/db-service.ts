@@ -42,10 +42,46 @@ export interface Habit extends BaseTask {
   negative: boolean
 }
 
+// Date helper functions
+export const getDueDateTimestamp = (relativeDate: string): number => {
+  const now = new Date()
+  switch (relativeDate) {
+    case "Today":
+      return now.setHours(23, 59, 59, 999)
+    case "Tomorrow":
+      return new Date(now.setDate(now.getDate() + 1)).setHours(23, 59, 59, 999)
+    case "In 2 days":
+      return new Date(now.setDate(now.getDate() + 2)).setHours(23, 59, 59, 999)
+    case "In 3 days":
+      return new Date(now.setDate(now.getDate() + 3)).setHours(23, 59, 59, 999)
+    case "This week":
+      return new Date(now.setDate(now.getDate() + (7 - now.getDay()))).setHours(23, 59, 59, 999)
+    case "Next week":
+      return new Date(now.setDate(now.getDate() + (7 - now.getDay() + 7))).setHours(23, 59, 59, 999)
+    default:
+      return now.setHours(23, 59, 59, 999)
+  }
+}
+
+export const formatDueDate = (timestamp: number): string => {
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const dueDate = new Date(timestamp)
+  const dueDateStart = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate())
+  
+  const diffDays = Math.ceil((dueDateStart.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+  
+  if (diffDays === 0) return "Today"
+  if (diffDays === 1) return "Tomorrow"
+  if (diffDays === -1) return "Yesterday"
+  if (diffDays < 0) return `${Math.abs(diffDays)} days overdue`
+  return `In ${diffDays} days`
+}
+
 export interface Daily extends BaseTask {
   completed: boolean
   streak: number
-  dueDate: string
+  dueDate: number // timestamp
   lastCompletedAt?: number // timestamp
 }
 
