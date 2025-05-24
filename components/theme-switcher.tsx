@@ -6,6 +6,38 @@ import { Button } from '@/components/ui/button'
 
 export function ThemeSwitcher() {
   const { theme, setTheme } = useTheme()
+  const [mounted, setMounted] = React.useState(false)
+
+  // Only show the theme switcher after mounting to prevent hydration mismatch
+  React.useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted) {
+    return (
+      <div className="p-2">
+        <p className="text-sm mb-2">Theme:</p>
+        <div className="flex flex-col space-y-2">
+          <Button
+            variant="outline"
+            disabled={true}
+            size="sm"
+            className="w-full justify-start"
+          >
+            Pip-Boy
+          </Button>
+          <Button
+            variant="outline"
+            disabled={true}
+            size="sm"
+            className="w-full justify-start"
+          >
+            Modern
+          </Button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="p-2">

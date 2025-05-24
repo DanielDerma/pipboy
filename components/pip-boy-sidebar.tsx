@@ -1,13 +1,11 @@
 "use client"
 
-import { useState, useEffect } from "react"
 import { PixelProgressBar } from "@/components/pixel-progress-bar"
 import { RetroBox } from "@/components/retro-box"
 import { ThemeSwitcher } from "@/components/theme-switcher"
+import { useUser } from "@/hooks/useUser"
 import { cn } from "@/lib/utils"
 import { X } from "lucide-react"
-import { userDB } from "@/lib/db-service"
-import { useUser } from "@/hooks/useUser"
 
 interface PipBoySidebarProps {
   isCollapsed: boolean
@@ -26,14 +24,14 @@ export function PipBoySidebar({ isCollapsed, toggleSidebar, isMobile = false }: 
     <div
       data-sidebar="true"
       className={cn(
-        "h-full border-r-2 border-[#00ff00] bg-[#0b3d0b] transition-all duration-300 overflow-hidden",
+        "h-full border-r-2 border-[#00ff00] bg-[#0b3d0b] transition-all duration-300 overflow-hidden flex flex-col",
         isMobile ? "w-64" : isCollapsed ? "w-12" : "w-64",
         isMobile && "shadow-lg",
       )}
     >
       {/* Toggle button - different for mobile and desktop */}
       {isMobile ? (
-        <div className="w-full h-16 border-b-2 border-[#00ff00] flex items-center justify-between px-3">
+        <div className="w-full h-16 border-b-2 border-[#00ff00] flex items-center justify-between px-3 flex-shrink-0">
           <div className="text-lg glow-text">STATS</div>
           <button
             onClick={toggleSidebar}
@@ -46,7 +44,7 @@ export function PipBoySidebar({ isCollapsed, toggleSidebar, isMobile = false }: 
       ) : (
         <button
           onClick={toggleSidebar}
-          className="w-full h-10 border-b-2 border-[#00ff00] flex items-center justify-center hover:bg-[#00ff00]/20"
+          className="w-full h-10 border-b-2 border-[#00ff00] flex items-center justify-center hover:bg-[#00ff00]/20 flex-shrink-0"
           aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           <div
@@ -59,7 +57,7 @@ export function PipBoySidebar({ isCollapsed, toggleSidebar, isMobile = false }: 
       )}
 
       {/* Sidebar content */}
-      <div className="p-3 space-y-6">
+      <div className="p-3 space-y-6 overflow-y-auto flex-1">
         {/* Player avatar */}
         <div className={cn("flex flex-col items-center", isCollapsed && !isMobile ? "hidden" : "")}>
           <div className="w-24 h-24 border-2 border-[#00ff00] rounded-full flex items-center justify-center mb-2 relative overflow-hidden">

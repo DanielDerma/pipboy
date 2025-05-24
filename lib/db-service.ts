@@ -346,8 +346,7 @@ class DatabaseService {
         const transaction = db.transaction(STORES.SYNC_QUEUE, "readwrite")
         const syncStore = transaction.objectStore(STORES.SYNC_QUEUE)
 
-        const syncItem: SyncQueueItem = {
-          id: 0, // Will be auto-incremented
+        const syncItem: Omit<SyncQueueItem, 'id'> = {
           operation,
           store,
           data,
