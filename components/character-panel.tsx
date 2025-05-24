@@ -139,7 +139,7 @@ export function CharacterPanel() {
         </div>
 
         {/* Skills */}
-        <div className="md:col-span-2">
+        {/* <div className="md:col-span-2">
           <RetroBox>
             <h2 className="text-xl uppercase glow-text mb-4">Skills</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -154,7 +154,7 @@ export function CharacterPanel() {
               ))}
             </div>
           </RetroBox>
-        </div>
+        </div> */}
       </div>
     </div>
   )

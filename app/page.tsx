@@ -52,7 +52,7 @@ export default function Home() {
         {activeTab === "stats" && (
           <div className="space-y-6">
             <CharacterPanel />
-            <StatsTab />
+            {/* <StatsTab /> */}
           </div>
         )}
         {activeTab === "inventory" && <InventoryTab />}
