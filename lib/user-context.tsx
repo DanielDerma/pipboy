@@ -36,7 +36,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const updateUser = async (updatedUser: User) => {
     try {
       setLoading(true)
-      setUser(updatedUser)
+      // Update the database first
+      const savedUser = await userDB.update(updatedUser)
+      // Then update the state with the saved user
+      setUser(savedUser)
     } catch (err) {
       setError(err instanceof Error ? err : new Error("Failed to update user"))
       throw err
