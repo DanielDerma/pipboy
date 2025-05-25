@@ -123,50 +123,6 @@ html.pipboy {
   --card-foreground: var(--pip-boy-text);
 }
 
-html.modern {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.6 0.118 227.392); /* Blue */
-  --primary-foreground: oklch(0.985 0 0); /* Near White */
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.6 0.118 227.392); /* Blue */
-  --accent-foreground: oklch(0.985 0 0); /* Near White */
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.6 0.118 227.392); /* Blue */
-}
-
-html.modern {
-  @media (prefers-color-scheme: dark) {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0); /* Corrected from documentation which had 0.269 */
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.7 0.15 227.392); /* Lighter Blue */
-    --primary-foreground: oklch(0.145 0 0); /* Near Black */
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.7 0.15 227.392); /* Lighter Blue */
-    --accent-foreground: oklch(0.145 0 0); /* Near Black */
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(0.371 0 0); /* Dark Gray, instead of transparent white */
-    --input: oklch(0.371 0 0); /* Dark Gray, instead of transparent white */
-    --ring: oklch(0.7 0.15 227.392); /* Lighter Blue */
-  }
-}
-
 @font-face {
   font-family: "VT323";
   src: url("https://fonts.googleapis.com/css2?family=VT323&display=swap");
