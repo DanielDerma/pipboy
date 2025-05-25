@@ -1,6 +1,9 @@
-import type React from "react"
+'use client';
+
+import React, { useEffect, useState } from 'react';
 import type { Metadata } from "next"
 import { VT323 } from "next/font/google"
+import { useTheme } from 'next-themes';
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import ServiceWorkerRegister from "./sw-register"
@@ -34,6 +37,20 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const { theme } = useTheme();
+  const [bodyClassName, setBodyClassName] = useState('h-full');
+
+  useEffect(() => {
+    let classes = 'h-full';
+    if (theme === 'pipboy') {
+      classes += ` ${vt323.variable} font-mono`;
+    }
+    // For 'modern' theme, no explicit font classes are added here,
+    // relying on CSS in globals.css (e.g., html.modern body)
+    // to set the system font.
+    setBodyClassName(classes);
+  }, [theme]);
+
   return (
     <html lang="en" className="h-full" suppressHydrationWarning>
       <head>
@@ -86,7 +103,7 @@ export default function RootLayout({
           media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
         />
       </head>
-      <body className={`${vt323.variable} font-mono h-full`}>
+      <body className={bodyClassName}>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} disableTransitionOnChange>
           {children}
         </ThemeProvider>
