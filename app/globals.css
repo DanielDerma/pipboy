@@ -132,8 +132,8 @@ html.pipboy {
 
 body {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-  background-color: var(--background, var(--pip-boy-bg)); /* Fallback to pip-boy-bg if --background is not defined */
-  color: var(--foreground, var(--pip-boy-text)); /* Fallback to pip-boy-text if --foreground is not defined */
+  background-color: var(--background); /* REMOVED FALLBACK */
+  color: var(--foreground); /* REMOVED FALLBACK */
   margin: 0;
   padding: 0;
   overflow: hidden;
